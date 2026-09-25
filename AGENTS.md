@@ -95,6 +95,13 @@ agent's first message in this repo, without being reminded:
   this repo; do not depend on `railway link` (it fails `Unauthorized` for
   this project-scoped token even though direct-flag calls succeed).
 
+- **Deploy only via `scripts/deploy.sh` from this checkout; never run
+  `railway up` directly from another directory (incident 2026-09-25:
+  Crest's Dockerfile got deployed to Railway — guard in place now).**
+  The deploy script resolves the repo root, validates `railway.json` and
+  `app/main.py` presence, fetches the token via BWS inline (never echoed),
+  and polls the custom domain until `200` is reached or 6 minutes elapse.
+
 ## The Backlog File
 
 `docs/product/backlog.md` is the product backlog in the product's own
