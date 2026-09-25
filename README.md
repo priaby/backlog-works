@@ -31,7 +31,7 @@ surface for a human to steer it.
 
 ## Run locally
 
-`PORT=8080 python3 app/main.py` -- serves `/` (placeholder page) and `/healthz` (`200 ok`) on `0.0.0.0:$PORT`, stdlib only, no dependencies.
+`PORT=8080 PYTHONPATH=src python3 -m backlogworks` -- serves `/` (placeholder page) and `/healthz` (`200 ok`) on `0.0.0.0:$PORT`, stdlib only, no dependencies.
 
 `scripts/check.sh` -- repo gate: backlog file format, Python compile, app smoke test, skill wiring, secret-literal scan.
 

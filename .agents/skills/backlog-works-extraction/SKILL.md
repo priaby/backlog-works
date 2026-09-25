@@ -23,6 +23,16 @@ authoritative survey is Crest's
 | `src/crest/api/admin.py` (362 lines), `crest_analytics_api.py` admin routes (~90 lines) | rewrite | Keep the HTTP shape (hidden 404, CSRF = HMAC of session token, Origin allow-list, reorder body validation, 409 on stale `base_sha`); replace every `access.*` call with this product's own session (PBI-003 Standalone sign-in) or API key (PBI-004 API key for agents). |
 | `scripts/test_crest_admin.py`, `assets/crest-email-code-challenge.*`, `scripts/check-crest-architecture.py` | spec only | Read for required behaviour; do not lift code. |
 
+## Where ported code lands
+
+`docs/architecture.md` section 3 is the map; `scripts/check_architecture.py`
+enforces it. Crest's `backlog_source.py` splits in two here: the pure
+parse/validate/reorder functions go to `src/backlogworks/backlog/`, the
+Contents API client to `src/backlogworks/github/`. `admin_content.py` and
+the board asset go to `src/backlogworks/web/` (asset under `web/assets/`).
+Nothing from Crest's `admin.py` auth lands anywhere but as a spec for
+`src/backlogworks/auth/`. Tests go to `tests/<block>/`.
+
 ## Rules while porting
 
 - Stdlib only stays the default (`urllib`, `json`, `re`, `hmac`, `secrets`,

@@ -18,11 +18,16 @@ brand assets, provider logos) unless this product actually needs them.
   format (see below). Product Owner priority order = document order.
 - `docs/ops/` — handoffs, infra notes, operational receipts;
   `docs/ops/README.md` indexes them, newest first.
-- `app/` — the deployed service. `Dockerfile`, `railway.json` — its build
-  and deploy config.
+- `docs/architecture.md` — as-is and next-state architecture, dependency
+  rule, decisions log. Read before adding code; update in the same commit
+  as any structural change.
+- `src/backlogworks/` — the deployed service, one package with the
+  building blocks `backlog`, `github`, `auth`, `web`, `config`.
+  `Dockerfile`, `railway.json` — its build and deploy config.
 - `scripts/check.sh` — the repo gate (run before every commit and handoff);
   `scripts/check_backlog.py` — backlog format checker;
-  `scripts/deploy.sh` — the only deploy path.
+  `scripts/check_architecture.py` — import matrix, env access, size cap,
+  root allowlist; `scripts/deploy.sh` — the only deploy path.
 
 ## Skills
 
@@ -41,8 +46,9 @@ external action (deploy, push, vault write) on its own.
 
 ## Session Workflow
 
-1. Read this file, the newest `docs/ops/handoff-*.md`, and
-   `docs/product/backlog.md`. Run `scripts/check.sh`.
+1. Read this file, `docs/architecture.md`, the newest
+   `docs/ops/handoff-*.md`, and `docs/product/backlog.md`. Run
+   `scripts/check.sh`.
 2. Re-verify live claims from the last handoff with a current command
    before repeating them (domain status, deploy state).
 3. Work one item (see "One PBI in progress at a time"). Small commits with
@@ -111,9 +117,10 @@ agent's first message in this repo, without being reminded:
   `58c03d4e-9dd6-4ae1-97c7-caa5248699fe`).
 - **Service:** name `backlog-works`, ID `d42bcadc-5c37-46b1-aee2-b6904d25b5b3`.
   Deployed from this repo's `Dockerfile` (`python:3.12-slim`, stdlib-only
-  `app/main.py`, `GET /` placeholder page, `GET /healthz` → `200 ok`).
+  `python3 -m backlogworks`, `GET /` placeholder page, `GET /healthz` →
+  `200 ok`).
   Generated domain: `https://backlog-works-production.up.railway.app`
-  (confirmed `200`/`ok` on both routes). Startup note: `app/main.py`
+  (confirmed `200`/`ok` on both routes). Startup note: `web/server.py`
   overrides `server_bind` to skip the reverse-DNS lookup that stalled boot
   by 5 s locally.
 - **Custom domain:** `backlog.works` attached
@@ -140,7 +147,7 @@ agent's first message in this repo, without being reminded:
   `railway up` directly from another directory (incident 2026-09-25:
   Crest's Dockerfile got deployed to Railway — guard in place now).**
   The deploy script resolves the repo root, validates `railway.json` and
-  `app/main.py` presence, fetches the token via BWS inline (never echoed
+  `src/backlogworks/__main__.py` presence, fetches the token via BWS inline (never echoed
   or traced), passes all three scope flags explicitly, and polls the
   custom domain until `200` is reached or 6 minutes elapse, then also
   checks the generated domain's `/healthz`.

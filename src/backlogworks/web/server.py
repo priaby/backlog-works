@@ -1,12 +1,14 @@
+# Copyright (c) 2026 Pavel Riaby. All rights reserved. See LICENSE.
 """Minimal, dependency-free web service for backlog.works.
 
 Serves a "coming soon" placeholder page and a health check. Uses only the
 Python standard library so the container build has no dependency surface.
 """
 
-import os
 import socketserver
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+from backlogworks.config import Config
 
 INDEX_HTML = """<!doctype html>
 <html lang="en">
@@ -73,11 +75,6 @@ class Server(ThreadingHTTPServer):
         self.server_port = port
 
 
-def main() -> None:
-    port = int(os.environ.get("PORT", "8080"))
-    server = Server(("0.0.0.0", port), Handler)
+def serve(config: Config) -> None:
+    server = Server((config.bind_host, config.port), Handler)
     server.serve_forever()
-
-
-if __name__ == "__main__":
-    main()

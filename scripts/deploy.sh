@@ -11,8 +11,8 @@ if [[ ! -f railway.json ]]; then
   exit 1
 fi
 
-if [[ ! -f app/main.py ]]; then
-  echo "Error: app/main.py not found in $REPO_ROOT — aborting deploy" >&2
+if [[ ! -f src/backlogworks/__main__.py ]]; then
+  echo "Error: src/backlogworks/__main__.py not found in $REPO_ROOT — aborting deploy" >&2
   exit 1
 fi
 

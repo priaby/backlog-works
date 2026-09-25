@@ -10,11 +10,14 @@ echo "== backlog format"
 python3 -W error scripts/check_backlog.py docs/product/backlog.md || fail=1
 
 echo "== python compiles"
-python3 -W error -m py_compile app/main.py scripts/check_backlog.py && echo "ok py_compile" || fail=1
+python3 -W error -m py_compile $(find src scripts -name '*.py') && echo "ok py_compile" || fail=1
+
+echo "== architecture"
+python3 -W error scripts/check_architecture.py || fail=1
 
 echo "== app smoke test"
 port=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')
-PORT="$port" python3 app/main.py >/dev/null 2>&1 &
+PORT="$port" PYTHONPATH=src python3 -m backlogworks >/dev/null 2>&1 &
 pid=$!
 trap 'kill "$pid" 2>/dev/null || true' EXIT
 ok=0
