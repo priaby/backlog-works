@@ -28,12 +28,13 @@ INDEX_HTML = """<!doctype html>
 
 
 class Handler(BaseHTTPRequestHandler):
-    def _send(self, status: int, body: bytes, content_type: str) -> None:
+    def _send(self, status: int, body: bytes, content_type: str, write_body: bool = True) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        if write_body:
+            self.wfile.write(body)
 
     def do_GET(self) -> None:
         if self.path == "/healthz":
@@ -43,6 +44,15 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
             return
         self._send(404, b"not found", "text/plain; charset=utf-8")
+
+    def do_HEAD(self) -> None:
+        if self.path == "/healthz":
+            self._send(200, b"ok", "text/plain; charset=utf-8", write_body=False)
+            return
+        if self.path == "/":
+            self._send(200, INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8", write_body=False)
+            return
+        self._send(404, b"not found", "text/plain; charset=utf-8", write_body=False)
 
     def log_message(self, fmt: str, *args) -> None:
         # Keep default stderr logging (Railway captures container logs);
