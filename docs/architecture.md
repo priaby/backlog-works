@@ -17,8 +17,9 @@ the public landing, and the product documentation.
 
 `scripts/check_architecture.py` (inside `scripts/check.sh`) enforces the
 block list, the import matrix, where the environment and the network may
-be touched, a per-file size cap, and the root allowlist. When code and this
-page disagree the gate fails and one of them is fixed in the same commit.
+be touched, a per-file size cap, and the root allowlist. Consistency
+between this page and the code is a review duty at every structural
+commit; the gate catches the mechanical part.
 
 Why this exists before product code: Crest, the product this was extracted
 from, grew two root files of 1,800 and 5,500 lines and retrofitted a
@@ -49,22 +50,24 @@ event timeline, and an in-memory read cache.
 
 ## 2. Blocks
 
-All under `src/backlogworks/`. A block is a package with a docstring that
-states its responsibility; the docstring is the contract.
+All under `src/backlogworks/`. A block is a package (or, for `config` and
+`__main__`, a single module) whose docstring states its responsibility; the
+docstring is the contract. "As-is" means implemented in this checkout;
+what is deployed is evidenced separately in `docs/ops/`.
 
 | Block | Responsibility | Publishes | Subscribes | As-is | Next |
 |---|---|---|---|---|---|
 | `config` | every env var, read once into one frozen dataclass | | | `PORT` | `BASE_URL`, `GITHUB_*`, `BACKLOG_PATH`, `SESSION_SECRET`, `DATABASE_PATH`, mail |
-| `events` | `Event`, `EventBus` (sync, in-process, subscriber-isolated), audit sink; later the persisted timeline and the outbox | | | bus + stderr audit | SQLite `events` and `outbox` tables, timeline query |
+| `events` | `Event` envelope, `EventBus` (sync, in-process, registration-ordered, subscriber-isolated), audit sink; next: the append-only `events` table (timeline) and the generic `outbox` table with a transactional staging API and lease/ack API | `events.handler_failed` | | bus + stderr audit | timeline append, outbox staging and leasing |
 | `backlog` | file format as data: parse table, legend, items; validate reorder and single-cell status change; emit new text. **Pure, no I/O, no internal imports.** | | | parse | reorder / status change (PBI-001) |
-| `github` | Contents API read (ETag cache) and commit (blob `sha` guard); `push` webhook receiver | `backlog.loaded`, `backlog.committed`, `backlog.commit_conflicted`, `backlog.file_changed` | | empty | PBI-001 |
-| `auth` | magic-link sign-in, PO session cookie, CSRF, per-repo API keys; owns its tables | `auth.signin_requested`, `auth.signed_in`, `auth.signed_out`, `auth.key_issued`, `auth.key_revoked`, `auth.key_used` | | empty | PBI-003, PBI-004 |
-| `notify` | outbound mail via outbox with retries; never called directly | `notify.sent`, `notify.failed` | `auth.signin_requested`, `backlog.item_status_changed` | empty | PBI-003 |
-| `demo` | fictitious tenant `demo/lighthouse` packaged with the image, for showing the board before a real tenant exists | `backlog.loaded` | | live at `/demo` | hidden once a tenant is configured |
+| `github` | Contents API read (ETag cache) and commit (blob `sha` guard); `push` webhook receiver with signature check | `backlog.loaded`, `backlog.committed`, `backlog.commit_conflicted`, `backlog.file_changed` | `backlog.file_changed` (drop cache) | empty | PBI-001 |
+| `auth` | magic-link sign-in, PO session cookie, CSRF, per-repo API keys; owns its tables; stages the private mail job through the events outbox API in the same transaction as its state | `auth.signin_requested`, `auth.signed_in`, `auth.signed_out`, `auth.key_issued`, `auth.key_revoked`, `auth.key_used` | | empty | PBI-003, PBI-004 |
+| `notify` | delivery worker: leases mail jobs from the events outbox, sends, acks; retries with backoff and dead-letters; never called directly, never reads another block's tables | `notify.sent`, `notify.failed` | outbox jobs of kind `mail`; `backlog.item_status_changed` (stages a PO digest job) | empty | PBI-003 |
+| `demo` | fictitious tenant `demo/lighthouse` packaged with the image, for showing the board before a real tenant exists | `backlog.loaded` (`sha` = content hash) | | `/demo`, read-only | hidden once a tenant is configured |
 | `landing` | public `/` and pitch pages | | | placeholder + link to demo | PBI-006 (Brand and landing page) |
-| `docs` | product documentation at `/docs/*` from markdown packaged in the image | | | empty | first page with PBI-004 (API reference) |
+| `docs` | product documentation at `/docs/*` from markdown packaged in the image | | | empty | first pages: file format and status legend (with PBI-001), API reference (with PBI-004) |
 | `web` | routes, server-rendered pages, JSON endpoints, headers, CSRF check; the only place blocks meet | `backlog.reordered`, `backlog.item_status_changed` | | `/`, `/healthz`, `/demo` | board, API, sign-in routes |
-| `__main__` | composition root: build bus, subscribe consumers, start server | `service.started` | | | |
+| `__main__` | composition root: build bus, subscribe consumers, construct server, publish `service.started`, serve | `service.started` | | | |
 
 ### Dependency rule (enforced)
 
@@ -84,52 +87,111 @@ config   -> (nothing)
 
 Direct calls go down this list. Anything that would need to go up or
 sideways (auth wanting mail sent, github wanting the cache dropped, web
-wanting a timeline entry) is an event instead. `web` is the only block that
-imports more than two others, on purpose: it is the composition surface
-for a request, as `__main__` is for the process.
+wanting a timeline entry) is an event or an outbox job instead. `web` is
+the composition surface for a request and `__main__` for the process; every
+other block imports at most `backlog`, `events`, `config`.
 
 ## 3. Event model
 
-- **Events are facts, past tense, immutable, JSON-able**:
-  `Event(name, payload, actor, repo, occurred_at)`. `repo` is the tenant.
-  `actor` is `system`, `po:<session id>` or `agent:<key id>`.
-- **Commands are plain function calls** into a block (`reorder(...)`,
-  `request_signin(...)`). The block performs its primary effect, then
-  publishes. There is no command bus; the call stack is the command.
-- **Dispatch is synchronous in the publishing thread.** Subscribers are
-  isolated: an exception is logged as `events.handler_failed` and never
-  fails the command. Ordering within one publish is subscription order.
-- **Persistence (next):** every event is appended to the `events` table
-  before subscribers run. That table is the product's timeline ("what
-  happened to PBI-003 and who did it") and the audit log. Nothing is ever
-  updated or deleted in it.
-- **External effects go through an outbox (next):** `notify` writes a row
-  in the same transaction as the event; a dispatcher thread drains it with
-  backoff. At-least-once delivery without a broker. Idempotency keys on the
-  row.
-- **Inbound events:** the GitHub `push` webhook becomes
-  `backlog.file_changed`; subscribers drop the read cache and write the
-  timeline entry, which is how an agent's plain `git push` shows up on the
-  Product Owner's phone without polling.
-- **No broker, no async framework, no second process** until an event
-  consumer needs more than one process worth of work. Revisit trigger is in
-  the decisions log.
+### Envelope
+
+`Event(event_id, schema_version, name, payload, actor, repo, occurred_at)`.
+Facts, past tense, immutable, JSON data only (validated and snapshotted at
+construction; payload nested under `payload`, never merged into the
+envelope). `repo` is the tenant; `actor` is `system`, `po:<session id>`,
+or `agent:<key id>`. Never a bearer token, an email address, or file
+content in a payload; hashes and ids only.
+
+### Two kinds of effects
+
+1. **Mandatory recording** happens inside the command's transaction, not
+   in a subscriber: the state change, the timeline append, and any
+   required outbox job commit together or not at all. A failure here fails
+   the command with an explicit error.
+2. **Optional observers** (audit sink, cache drop, metrics) run after the
+   commit, synchronously in the publishing thread, in registration order,
+   each isolated: a failing observer is recorded as `events.handler_failed`
+   (stable handler id and exception class only) and never affects the
+   command or the other observers. The failure sink itself is guarded.
+
+There is no command bus; the call stack is the command.
+
+### Transactions
+
+- **Local state** (auth tables, timeline, outbox) lives in one SQLite file:
+  one connection per request or worker, short write transactions,
+  `busy_timeout`, bounded retry on `SQLITE_BUSY`.
+- **GitHub writes cannot join a SQLite transaction.** A write command
+  first records an `operations` row (operation id, repo, kind, intent,
+  base sha) and commits it, then performs the network write, then records
+  completion (new sha) plus the resulting events in one local transaction.
+  A crash between the two leaves an `in_flight` operation; on the next
+  request for that repo or at startup, reconcile by reading the file: if
+  the live sha equals the intended result, complete it; otherwise mark it
+  `unknown` and surface it. Never repeat a commit blindly, never report a
+  rollback that did not happen. The API returns `202 {operation_id}` for
+  an uncertain outcome; clients poll `/api/operations/{id}`.
+
+### Ordering and identity
+
+- Durable order is the `events.seq` autoincrement per file; the timeline
+  is read in that order. In-process delivery order is registration order.
+  No promise that GitHub webhook arrival order equals commit order; the
+  webhook carries the commit sha and is correlated to the operation that
+  produced it, so an API write followed by its own webhook is one change,
+  not two.
+- Idempotency keys: outbox effects are unique on
+  `(event_id, consumer, effect_kind)`; webhook deliveries are unique on
+  `X-GitHub-Delivery`. Duplicates are acknowledged and dropped.
+
+### Outbox and delivery
+
+- `events` owns the generic `outbox` table and two APIs: `stage(job)`,
+  called only inside the producer's transaction, and `lease(kind, n)` /
+  `ack(id)` / `fail(id, error)`. Job rows can hold private delivery data
+  (recipient, one-time link) with an `expires_at`; they are deleted after
+  ack or expiry and are never copied into an event.
+- `notify` runs one worker thread: lease, send, ack; exponential backoff
+  to a cap, then dead-letter with `notify.failed`. A crash after send and
+  before ack can duplicate a mail; the provider's idempotency key is the
+  job id when the provider supports one.
+- **Replay** rebuilds read projections (timeline views) from `events` with
+  delivery disabled. The timeline is not a substitute for the markdown
+  file, which stays the source of truth.
+
+### Inbound: GitHub webhook
+
+Before parsing: cap the body, verify `X-Hub-Signature-256` with
+`hmac.compare_digest` against `GITHUB_WEBHOOK_SECRET`, accept only `push`
+for the configured repository and branch, treat author fields as untrusted
+display data, and de-duplicate on the delivery id. Then publish
+`backlog.file_changed(commit_sha, delivery_id)`; the github block drops its
+cache and refetches (a truncated change list is treated as "changed").
+Force pushes and deletions of the file are recorded as changes and shown
+as format problems on the board, never auto-repaired.
+
+### Freshness on the phone
+
+The board is server-rendered HTML; freshness is on load or manual refresh
+and the page says when it was read. Live push to an open page (SSE with
+resume from `seq`) is deferred and, if ever built, is a separate
+authenticated endpoint; the in-process bus does not reach browsers.
 
 ### Event catalogue (next state)
 
 | Event | Payload | Produced by | Consumed by |
 |---|---|---|---|
 | `service.started` | port | `__main__` | audit |
-| `backlog.loaded` | source, sha, items, problems | github, demo | audit |
-| `backlog.file_changed` | sha, commit, author | github (webhook) | github cache, timeline |
+| `backlog.loaded` | source, sha (blob sha or content hash), items, problems | github, demo | audit |
+| `backlog.file_changed` | commit_sha, delivery_id | github (webhook) | github cache, timeline |
 | `backlog.reordered` | moved ids, base_sha, new_sha | web | timeline |
 | `backlog.item_status_changed` | id, from, to, new_sha | web | timeline, notify (to PO when an agent moves to review) |
 | `backlog.committed` / `backlog.commit_conflicted` | sha(s) | github | timeline |
-| `auth.signin_requested` | email hash, token id | auth | notify |
+| `auth.signin_requested` | email hash, link id | auth | timeline (the mail itself is an outbox job staged by auth, not an event) |
 | `auth.signed_in` / `auth.signed_out` | session id | auth | timeline |
 | `auth.key_issued` / `auth.key_revoked` / `auth.key_used` | key id, route | auth | timeline |
-| `notify.sent` / `notify.failed` | outbox id, kind, attempt | notify | audit |
-| `events.handler_failed` | for, handler, error | events | audit |
+| `notify.sent` / `notify.failed` | outbox id, kind, attempt | notify | audit, timeline |
+| `events.handler_failed` | for, handler id, exception class | events | audit |
 
 ### Sequence: Product Owner reorders from the phone (next)
 
@@ -151,9 +213,10 @@ sequenceDiagram
     W->>D: apply_reorder(text, ids)
     D-->>W: new text | InvalidReorder
     W->>G: commit(new text, sha)
-    G-->>E: backlog.committed
-    W->>E: backlog.reordered
-    E-->>E: timeline append, subscribers
+    Note over W,E: operations row committed before the network write
+    G-->>W: new sha
+    W->>E: one transaction: operation done, backlog.committed, backlog.reordered
+    E-->>E: post-commit observers
     W-->>B: 200 {sha}
   end
 ```
@@ -167,8 +230,12 @@ One SQLite file on a Railway volume, `DATABASE_PATH`. Table ownership is
 per block and enforced by convention (each block has its own `schema.py`
 and never reads another block's tables):
 
-- `events` (events): append-only timeline and audit.
-- `outbox` (notify): pending external effects, attempts, last error.
+- `events` (events): append-only timeline and audit, `seq` order.
+- `outbox` (events): staged jobs with kind, private payload, lease,
+  attempts, last error class, `expires_at`; rows deleted after ack/expiry.
+- `operations` (events): intent and completion records for writes that
+  cross the GitHub boundary (section 3, Transactions).
+- `webhook_deliveries` (github): delivery id uniqueness.
 - `sessions`, `magic_links`, `api_keys` (auth): all with a `repo` column
   from day one, so a second tenant is configuration, not a rewrite.
 
@@ -198,12 +265,28 @@ No backlog content at rest. A restart loses only the in-memory read cache.
    humans and agents.
 8. **Tests are `unittest`, no sockets** (patch `urllib`), one directory per
    block, run by `scripts/check.sh`.
-9. **The format contract** is what `backlog.parse_backlog` accepts:
-   first contiguous `| PBI-` block, `| PBI-<n>[a-z]. Title | Core Job |
-   Context | Status[<br>note] | Driver |`, legend as in the file's callout.
-   The repo's own `docs/product/backlog.md` is checked by the same code.
-10. **Secrets** never in repo, image, logs, or events (hash emails, log key
-    ids not keys). See `.agents/skills/backlog-works-secrets/SKILL.md`.
+9. **The format contract**: first contiguous `| PBI-` block, rows
+   `| PBI-<n>[a-z]. Title | Core Job | Context | Status[<br>note] | Driver |`.
+   The eight statuses in `backlog.STATUSES` are canonical; the file's
+   legend callout is documentation, validated against them, not a source
+   of custom vocabularies. The repo's own `docs/product/backlog.md` is
+   checked by the same parser.
+10. **Reader and writer are different contracts.** `parse_backlog` is a
+    tolerant reader for display (records problems, never raises on a
+    row). The write path (PBI-001) works on raw row byte slices with exact
+    spans and line terminators preserved, refuses malformed, duplicate, or
+    ambiguous rows before any mutation, moves untouched slices for a
+    reorder, replaces only the status token for a status change, and
+    checks id multiset (not just set), per-row cell counts, and every
+    non-target byte. Round-trip and adversarial fixtures are mandatory.
+11. **Secrets** never in repo, image, logs, or events (hash emails, log key
+    ids not keys; access logs keep method, path without query, status).
+    See `.agents/skills/backlog-works-secrets/SKILL.md`.
+12. **The gate is a convention guard, not a sandbox.** It enforces the
+    import matrix, environment and network access points, size cap, root
+    allowlist, and declared blocks over static ASTs; doc-to-code
+    consistency of this page is a review duty, checked at every
+    structural commit.
 
 ## 6. Decisions log
 
@@ -219,10 +302,19 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 | 2026-09-25 | SQLite on a Railway volume, per-block table ownership | one process, tiny write volume | multi-instance or multi-region |
 | 2026-09-25 | Single-tenant first, `repo` column everywhere | ship PBI-001..004 without a rewrite | second customer repo |
 | 2026-09-25 | `demo` block with a fictitious packaged backlog | show the board before GitHub source and sign-in exist | first real tenant configured |
+| 2026-09-25 | Mandatory recording in the command transaction; observers post-commit and isolated | independent review finding 1: subscribers cannot be both isolated and required | never |
+| 2026-09-25 | `events` owns a generic outbox with private job payloads; `notify` is the delivery worker | review finding 2: magic-link mail cannot be built from a hashed event | a second delivery kind that needs its own worker |
+| 2026-09-25 | `operations` intent record around every GitHub write; uncertain outcomes surfaced, never retried blindly | review finding 1: GitHub and SQLite cannot share a transaction | never |
+| 2026-09-25 | Freshness on load or refresh; no live push in the next state | review finding 12 | a Product Owner asks for it |
 
 ## 7. Known debt
 
 - Bitwarden helper borrowed from Crest's checkout (see `backlog-works-secrets`
   skill); a repo-local helper is due when the second secret appears.
-- `events` has no persistence yet; the timeline and outbox arrive with the
-  first block that needs them (PBI-003).
+- `events` has no persistence yet; the timeline, outbox, and operations
+  tables arrive with the first write path (PBI-001), not later.
+- Independent review 2026-09-25 (Codex gpt-6-astra, report retained under
+  `artifacts/checks/arch-review-2026-09-25/`, summary in the handoff):
+  findings 1-4 and 11-13 are resolved in this page; findings 5-9, 14 and
+  the code parts of 13 are in the hardening branch; finding 10 is rule 10
+  and lands with the write path.
