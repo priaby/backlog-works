@@ -15,6 +15,10 @@ python3 -W error -m py_compile $(find src scripts -name '*.py') && echo "ok py_c
 echo "== architecture"
 python3 -W error scripts/check_architecture.py || fail=1
 
+echo "== unit tests"
+PYTHONPATH=src python3 -W error -m unittest discover -s tests -t . 2>&1 | tail -3 | sed 's/^/  /'
+PYTHONPATH=src python3 -W error -m unittest discover -s tests -t . >/dev/null 2>&1 && echo "ok unittest" || fail=1
+
 echo "== app smoke test"
 port=$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')
 PORT="$port" PYTHONPATH=src python3 -m backlogworks >/dev/null 2>&1 &
@@ -28,10 +32,11 @@ done
 root=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$port/" || echo 000)
 head=$(curl -sI -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$port/healthz" || echo 000)
 nf=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$port/nope" || echo 000)
-if [[ $ok == 1 && $root == 200 && $head == 200 && $nf == 404 ]]; then
-  echo "ok smoke: /healthz=ok GET/=200 HEAD/healthz=200 /nope=404"
+demo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$port/demo" || echo 000)
+if [[ $ok == 1 && $root == 200 && $head == 200 && $nf == 404 && $demo == 200 ]]; then
+  echo "ok smoke: /healthz=ok GET/=200 HEAD/healthz=200 /nope=404 /demo=200"
 else
-  echo "FAIL smoke: healthz_ok=$ok root=$root head=$head notfound=$nf"; fail=1
+  echo "FAIL smoke: healthz_ok=$ok root=$root head=$head notfound=$nf demo=$demo"; fail=1
 fi
 kill "$pid" 2>/dev/null || true; trap - EXIT
 

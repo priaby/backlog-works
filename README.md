@@ -33,7 +33,9 @@ surface for a human to steer it.
 
 `PORT=8080 PYTHONPATH=src python3 -m backlogworks` -- serves `/` (placeholder page) and `/healthz` (`200 ok`) on `0.0.0.0:$PORT`, stdlib only, no dependencies.
 
-`scripts/check.sh` -- repo gate: backlog file format, Python compile, app smoke test, skill wiring, secret-literal scan.
+`scripts/check.sh` -- repo gate: backlog file format, architecture rules, Python compile, unit tests, app smoke test, skill wiring, secret-literal scan.
+
+`/demo` serves a fictitious product backlog ("Lighthouse") rendered by the same parser and board the product will use. Architecture: `docs/architecture.md`.
 
 ## Working in this repo with agents
 

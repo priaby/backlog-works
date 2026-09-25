@@ -1,8 +1,13 @@
 # Copyright (c) 2026 Pavel Riaby. All rights reserved. See LICENSE.
-"""Backlog domain: the markdown backlog file as data.
+"""Backlog domain: the markdown backlog file as data. Pure, no I/O.
 
-Owns parsing the `| PBI-` table, the status legend, and reorder/status-
-change validation (same id set, same per-row cell count, only order or one
-cell changes). Pure functions over text and small dataclasses. No I/O, no
-network, no imports from other backlogworks modules.
+Owns the file format contract (docs/architecture.md section 5): the first
+contiguous `| PBI-` table is the active backlog, rows are items, the
+status legend is the vocabulary. Reorder and status-change validation
+(same id set, same per-row cell count, nothing else changes) arrive with
+PBI-001. No imports from other backlogworks modules.
 """
+
+from backlogworks.backlog.model import STATUSES, Backlog, FormatError, Item, parse_backlog
+
+__all__ = ["STATUSES", "Backlog", "FormatError", "Item", "parse_backlog"]

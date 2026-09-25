@@ -18,12 +18,14 @@ brand assets, provider logos) unless this product actually needs them.
   format (see below). Product Owner priority order = document order.
 - `docs/ops/` — handoffs, infra notes, operational receipts;
   `docs/ops/README.md` indexes them, newest first.
-- `docs/architecture.md` — as-is and next-state architecture, dependency
-  rule, decisions log. Read before adding code; update in the same commit
+- `docs/architecture.md` — event-driven modular monolith: blocks, import
+  matrix, event catalogue, storage, rules, decisions log. Read before adding code; update in the same commit
   as any structural change.
-- `src/backlogworks/` — the deployed service, one package with the
-  building blocks `backlog`, `github`, `auth`, `web`, `config`.
-  `Dockerfile`, `railway.json` — its build and deploy config.
+- `src/backlogworks/` — the deployed service, one package with the blocks
+  listed in `docs/architecture.md` section 2 (`config`, `events`,
+  `backlog`, `github`, `auth`, `notify`, `demo`, `landing`, `docs`, `web`).
+  `tests/<block>/` — unittest per block. `Dockerfile`, `railway.json` —
+  build and deploy config.
 - `scripts/check.sh` — the repo gate (run before every commit and handoff);
   `scripts/check_backlog.py` — backlog format checker;
   `scripts/check_architecture.py` — import matrix, env access, size cap,

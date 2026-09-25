@@ -25,16 +25,21 @@ SRC = ROOT / "src" / "backlogworks"
 
 # module -> set of backlogworks modules it may import
 ALLOWED = {
-    "backlog": set(),
-    "github": {"backlog", "config"},
-    "auth": {"config"},
-    "web": {"backlog", "github", "auth", "config"},
     "config": set(),
-    "__main__": {"config", "web"},
+    "events": {"config"},
+    "backlog": set(),
+    "github": {"backlog", "events", "config"},
+    "auth": {"events", "config"},
+    "notify": {"events", "config"},
+    "demo": {"backlog", "events", "config"},
+    "landing": {"config"},
+    "docs": {"config"},
+    "web": {"backlog", "github", "auth", "demo", "landing", "docs", "events", "config"},
+    "__main__": {"config", "events", "web", "notify", "auth", "github"},  # composition root
     "__init__": set(),
 }
 NETWORK_MODULES = {"urllib", "http.client", "socket", "smtplib", "ssl"}
-NETWORK_ALLOWED_IN = {"github", "web"}  # web: only the stdlib server binding
+NETWORK_ALLOWED_IN = {"github", "notify", "web"}  # web: only the stdlib server binding
 SIZE_CAP_LINES = 600
 SIZE_CAP_EXEMPT: dict[str, int] = {}  # relative path -> justified cap
 
