@@ -36,7 +36,7 @@ promotes them.
 | PBI-004. API key for agents | Let an agentic team read and write the backlog without a human session | Issue a per-repo API key with the same write-path validation as the web reorder path (same id set, same per-row cell count, only order changes). | Proposed | Team |
 | PBI-005. Railway deploy of a hello-world service on backlog.works | Prove the deploy path works before building product on top of it | Stand up the smallest possible service on Railway, wire the `backlog.works` domain, confirm it answers over HTTPS. Uses the `RAILWAY_PAT` secret already in Crest's Bitwarden (UUID `4852b697-a726-4c8b-99f4-b4d000db3493`). | Proposed | Team |
 | PBI-006. Brand and landing page | Give the product a public face distinct from Crest | Name, mark, and a one-page pitch at `backlog.works` explaining the product (see README "Why"/"How it works"). | Proposed | Team |
-| PBI-007. Licence decision | Decide what licence, if any, governs this repo | No licence exists today (Product Owner decision pending, see README). Requires Product Owner choice — not a team decision. | Proposed | Product Owner |
+| PBI-007. Licence decision | Decide what licence, if any, governs this repo | PO decided 2026-09-25: proprietary, all rights reserved (see LICENSE). | Done | Product Owner |
 | PBI-008. Partner pitch one-pager | Have something to show a potential partner or early user | A concise one-pager: problem, how it works, status, ask. Depends on PBI-006 (Brand and landing page) for visual identity. | Proposed | Team |
 
 ## Bugs

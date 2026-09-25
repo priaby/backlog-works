@@ -110,5 +110,6 @@ compatible with it unless the Product Owner approves a format change.
 
 - Keep docs concise, ASCII where practical. No secrets, tokens, passwords,
   or private personal data in repo docs — names and UUIDs only.
-- No license header or repo-root LICENSE file until the Product Owner
-  decides (see README "License").
+- **Licensing (PO decision 2026-09-25):** proprietary commercial product;
+  public repo for visibility only; never add an OSS licence, OSS badges,
+  or 'contributions welcome' copy.

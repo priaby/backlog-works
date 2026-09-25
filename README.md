@@ -45,6 +45,11 @@ admin board (that repository is not public). This repository is a fresh
 extraction: a generalized backlog file format, board renderer, and write
 path, decoupled from Crest's own accounts, auth, and branding.
 
+License: proprietary, all rights reserved (see LICENSE). The repository is public for visibility; this is a commercial product, not open source.
+License: proprietary, all rights reserved (see LICENSE). The repository is public for visibility; this is a commercial product, not open source.
+To be decided (Product Owner decision pending). No license is granted yet.
+
 ## License
 
-To be decided (Product Owner decision pending). No license is granted yet.
+License: proprietary, all rights reserved (see LICENSE). The repository is
+public for visibility; this is a commercial product, not open source.
