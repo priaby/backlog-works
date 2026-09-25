@@ -3,8 +3,8 @@
 consumers, starts the HTTP server. Wiring only, no logic."""
 
 from backlogworks.config import Config
-from backlogworks.events import EventBus, audit_to_stderr
-from backlogworks.web.server import serve
+from backlogworks.events import Event, EventBus, audit_to_stderr
+from backlogworks.web.server import build_server
 
 
 def build_bus() -> EventBus:
@@ -14,7 +14,11 @@ def build_bus() -> EventBus:
 
 
 def main() -> None:
-    serve(Config.from_env(), build_bus())
+    config = Config.from_env()
+    bus = build_bus()
+    with build_server(config, bus) as server:
+        bus.publish(Event("service.started", {"port": server.server_port}))
+        server.serve_forever()
 
 
 if __name__ == "__main__":

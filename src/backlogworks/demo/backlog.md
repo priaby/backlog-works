@@ -37,7 +37,7 @@ works the top `Planned` or `In Progress` row.
 | PBI-020. Mobile quick-accept | Accept a job offer from the phone in one tap | Push notification with word count and deadline; Accept creates the job with the rate card applied. | Proposed | Team |
 | PBI-012. Two-factor sign-in | Protect client files behind more than a password | TOTP with recovery codes; required for accounts with client-portal links. | Waiting<br>Waiting on: security review appointment (external, booked 2026-10-06) | Team |
 | PBI-013. Export all data | Leave with everything, in a format another tool can read | ZIP with JSON + CSV per entity and all delivered files. | Ready for Product Owner review<br>Sprint: S3 | Team |
-| PBI-009. Transactional email provider | Reach users reliably with account and reminder mail | Chose a provider, wired sending with per-user unsubscribe, delivery webhook stored. | Done | Team |
+| PBI-009. Transactional email provider | Reach users reliably with account and reminder mail | Chose a provider; reminder mail follows user preferences, account/security mail is always sent; delivery webhook stored. | Done | Team |
 | PBI-010. Invoice PDF | Invoice a delivered job in one click | One-page PDF with the agency's billing details, job lines, VAT line, IBAN; numbered sequence per year. | Done | Team |
 | PBI-008. Onboarding without a credit card | Try the product on one real job before paying | 14-day trial, no card; trial banner with days left. | Cancelled | Product Owner |
 

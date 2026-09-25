@@ -3,13 +3,15 @@
 
 from __future__ import annotations
 
+import json
 import socketserver
+import sys
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from backlogworks.config import Config
 from backlogworks.demo import DEMO_REPO, load_demo
-from backlogworks.events import Event, EventBus
+from backlogworks.events import EventBus
 from backlogworks.landing import index_html
 from backlogworks.web.board import render_board
 
@@ -39,7 +41,7 @@ class App:
 
     def demo_board(self) -> Response:
         _, backlog = load_demo(self.bus)
-        page = render_board(backlog, repo=DEMO_REPO, subtitle="demo, read-only")
+        page = render_board(backlog, repo=DEMO_REPO, subtitle="Fictitious translator product, read-only")
         return 200, page.encode("utf-8"), "text/html; charset=utf-8"
 
     def dispatch(self, path: str) -> Response:
@@ -50,7 +52,19 @@ class App:
 
 
 class Handler(BaseHTTPRequestHandler):
-    app: App  # set by serve()
+    app: App  # set by build_server()
+
+    def log_message(self, format: str, *args: object) -> None:
+        """Suppress stdlib diagnostics, which can contain raw request targets."""
+
+    def log_request(self, code: int | str = "-", size: int | str = "-") -> None:
+        """Log only method, query-free path and status, with JSON escaping."""
+        try:
+            print(json.dumps({"method": self.command,
+                              "path": self.path.split("?", 1)[0], "status": code}),
+                  file=sys.stderr, flush=True)
+        except Exception:
+            pass
 
     def _send(self, status: int, body: bytes, content_type: str, write_body: bool = True) -> None:
         self.send_response(status)
@@ -79,8 +93,6 @@ class Server(ThreadingHTTPServer):
         self.server_port = port
 
 
-def serve(config: Config, bus: EventBus) -> None:
+def build_server(config: Config, bus: EventBus) -> Server:
     Handler.app = App(config, bus)
-    server = Server((config.bind_host, config.port), Handler)
-    bus.publish(Event("service.started", {"port": config.port}))
-    server.serve_forever()
+    return Server((config.bind_host, config.port), Handler)

@@ -19,8 +19,8 @@ INDEX_HTML = """<!doctype html>
 <p class="lead">A Scrum product backlog shared by a human Product Owner and agentic teams.</p>
 <ul>
   <li>The backlog is a markdown file in your repo, versioned like code.</li>
-  <li>The Product Owner orders and accepts work from a phone.</li>
-  <li>Agents read and write the same file through git or an API key.</li>
+  <li>Planned: Product Owner sign-in, ordering and acceptance from a phone.</li>
+  <li>Agents can work on the file through git. API access is planned.</li>
 </ul>
 <p><a class="btn" href="/demo">See a demo backlog</a></p>
 <p><small>Pre-alpha. Coming soon.</small></p>
