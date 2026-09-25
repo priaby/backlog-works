@@ -16,14 +16,21 @@ if [[ ! -f app/main.py ]]; then
   exit 1
 fi
 
-# Fetch token inline; never echo it
-set +x
-RAILWAY_TOKEN="$(python3 /home/priaby/Projects/crest/scripts/crest_bws.py get RAILWAY_PAT | tr -d '[:space:]')"
-export RAILWAY_TOKEN
-set -x
+# Railway scope (AGENTS.md "Infrastructure Facts"): always explicit flags,
+# never `railway link` (Unauthorized for the project-scoped token).
+RAILWAY_PROJECT="a611baf5-ab5c-432f-9370-88dab8c378c7"
+RAILWAY_SERVICE="backlog-works"
+RAILWAY_ENVIRONMENT="production"
 
-# Deploy
-railway up --service backlog-works --detach
+# Fetch token inline; never echo, trace, or persist it. Do not enable `set -x`
+# anywhere in this script.
+RAILWAY_TOKEN="$(python3 /home/priaby/Projects/crest/scripts/crest_bws.py get RAILWAY_PAT | tr -d '[:space:]')"
+[[ -n "$RAILWAY_TOKEN" ]] || { echo "Error: empty RAILWAY_PAT from Bitwarden" >&2; exit 1; }
+export RAILWAY_TOKEN
+
+echo "Deploying $(git rev-parse --short HEAD) from $REPO_ROOT to service $RAILWAY_SERVICE ($RAILWAY_ENVIRONMENT)"
+railway up --service "$RAILWAY_SERVICE" --project "$RAILWAY_PROJECT" \
+  --environment "$RAILWAY_ENVIRONMENT" --detach
 
 # Poll for deployment completion (6 minutes max, 20s interval)
 echo "Polling https://backlog.works for deployment readiness..."
@@ -37,7 +44,9 @@ while (( attempt < max_attempts )); do
   if [[ -n "$status_line" && "$status_line" =~ 200 ]]; then
     echo "Deployment ready. Status: $status_line"
     healthz=$(curl -s --max-time 10 https://backlog.works/healthz 2>/dev/null || echo "")
-    echo "Health check: $healthz"
+    generated=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+      https://backlog-works-production.up.railway.app/healthz 2>/dev/null || echo "000")
+    echo "Health check: backlog.works/healthz=$healthz generated-domain/healthz=$generated"
     exit 0
   fi
 

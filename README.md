@@ -33,10 +33,20 @@ surface for a human to steer it.
 
 `PORT=8080 python3 app/main.py` -- serves `/` (placeholder page) and `/healthz` (`200 ok`) on `0.0.0.0:$PORT`, stdlib only, no dependencies.
 
+`scripts/check.sh` -- repo gate: backlog file format, Python compile, app smoke test, skill wiring, secret-literal scan.
+
+## Working in this repo with agents
+
+`AGENTS.md` is the contract (imported by `CLAUDE.md`). Task-specific
+skills live in `.agents/skills/` (mirrored as symlinks in
+`.claude/skills/`): deploy, backlog file editing, reports and handoffs,
+porting from Crest, secrets handling.
+
 ## Status
 
 Pre-alpha. Extracted from Crest's admin backlog board (see Origin below) as
-a standalone starting point — nothing here is deployed yet.
+a standalone starting point. A placeholder service is live at
+`https://backlog.works`; no product code is ported yet.
 
 ## Origin
 
@@ -44,10 +54,6 @@ backlog.works started as a feature inside the Crest invoicing product's
 admin board (that repository is not public). This repository is a fresh
 extraction: a generalized backlog file format, board renderer, and write
 path, decoupled from Crest's own accounts, auth, and branding.
-
-License: proprietary, all rights reserved (see LICENSE). The repository is public for visibility; this is a commercial product, not open source.
-License: proprietary, all rights reserved (see LICENSE). The repository is public for visibility; this is a commercial product, not open source.
-To be decided (Product Owner decision pending). No license is granted yet.
 
 ## License
 

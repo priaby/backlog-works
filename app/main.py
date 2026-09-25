@@ -5,6 +5,7 @@ Python standard library so the container build has no dependency surface.
 """
 
 import os
+import socketserver
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 INDEX_HTML = """<!doctype html>
@@ -60,9 +61,21 @@ class Handler(BaseHTTPRequestHandler):
         super().log_message(fmt, *args)
 
 
+class Server(ThreadingHTTPServer):
+    def server_bind(self) -> None:
+        # HTTPServer.server_bind calls socket.getfqdn(), a reverse-DNS lookup
+        # that can stall startup for seconds on hosts with a slow resolver
+        # (measured 5s locally). The name is only used for the Server header
+        # default, so bind directly and set it statically.
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = host
+        self.server_port = port
+
+
 def main() -> None:
     port = int(os.environ.get("PORT", "8080"))
-    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    server = Server(("0.0.0.0", port), Handler)
     server.serve_forever()
 
 

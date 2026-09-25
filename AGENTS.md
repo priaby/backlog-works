@@ -9,10 +9,49 @@ brand assets, provider logos) unless this product actually needs them.
 ## File Ownership Map
 
 - `README.md` — positioning, status, origin, license status.
-- `AGENTS.md` — this file: workflow contract for agents.
+- `AGENTS.md` — this file: workflow contract for agents. `CLAUDE.md` only
+  imports it (`@AGENTS.md`); keep all guidance here.
+- `.agents/skills/<name>/SKILL.md` — canonical task skills;
+  `.claude/skills/<name>` are relative symlinks to them (Crest layout).
+  `scripts/check.sh` fails if the two sets drift.
 - `docs/product/backlog.md` — the product backlog in the product's own
   format (see below). Product Owner priority order = document order.
-- `docs/ops/` — handoffs, infra notes, operational receipts.
+- `docs/ops/` — handoffs, infra notes, operational receipts;
+  `docs/ops/README.md` indexes them, newest first.
+- `app/` — the deployed service. `Dockerfile`, `railway.json` — its build
+  and deploy config.
+- `scripts/check.sh` — the repo gate (run before every commit and handoff);
+  `scripts/check_backlog.py` — backlog format checker;
+  `scripts/deploy.sh` — the only deploy path.
+
+## Skills
+
+Load the skill whose trigger matches the task, once, at the start:
+
+| Skill | Use when |
+|---|---|
+| `backlog-works-report` | session start (takeover), any Product Owner report, session close handoff |
+| `backlog-works-backlog` | reading, editing, reordering, or changing status in `docs/product/backlog.md`; picking the next item |
+| `backlog-works-deploy` | deploying, verifying a release, checking Railway/domain status |
+| `backlog-works-extraction` | porting code from Crest for PBI-001 (Extract backlog source module), PBI-002 (Extract renderer/board) and their tests |
+| `backlog-works-secrets` | fetching `RAILWAY_PAT`, adding a Railway variable, documenting any credential |
+
+This file's directives win over any skill. A skill never authorises an
+external action (deploy, push, vault write) on its own.
+
+## Session Workflow
+
+1. Read this file, the newest `docs/ops/handoff-*.md`, and
+   `docs/product/backlog.md`. Run `scripts/check.sh`.
+2. Re-verify live claims from the last handoff with a current command
+   before repeating them (domain status, deploy state).
+3. Work one item (see "One PBI in progress at a time"). Small commits with
+   conventional subjects (`feat:`, `fix:`, `docs:`, `chore:`), gate green
+   before each commit, push to `main` (no branch protection yet; a PR is
+   optional for a single-person team and required once a reviewer exists).
+4. Deploy only via `scripts/deploy.sh`, only a pushed `main` SHA.
+5. Close with a handoff section and a three-part report
+   (`backlog-works-report`).
 
 ## Product Owner Standing Directives
 
@@ -74,15 +113,17 @@ agent's first message in this repo, without being reminded:
   Deployed from this repo's `Dockerfile` (`python:3.12-slim`, stdlib-only
   `app/main.py`, `GET /` placeholder page, `GET /healthz` → `200 ok`).
   Generated domain: `https://backlog-works-production.up.railway.app`
-  (confirmed `200`/`ok` on both routes).
+  (confirmed `200`/`ok` on both routes). Startup note: `app/main.py`
+  overrides `server_bind` to skip the reverse-DNS lookup that stalled boot
+  by 5 s locally.
 - **Custom domain:** `backlog.works` attached
   (`customDomainCreate` id `1a99d12f-c40c-41f1-a75b-0aae62b4d70a`). Railway
   returned a required CNAME (`backlog.works` → `3vtl6rr0.up.railway.app`)
   and an ownership-verification TXT host (`_railway-verify`). The domain
-  was purchased through Railway's own registrar, so DNS is expected to be
-  Railway-managed and to converge automatically; see
-  `docs/ops/handoff-2026-09-25.md` for the propagation/cert receipt as of
-  this session's close.
+  was purchased through Railway's own registrar and DNS converged on its
+  own: as of 2026-09-25 14:22 UTC `dig +short backlog.works` returns
+  `69.46.46.108` and `curl -sI https://backlog.works` returns `HTTP/2 200`
+  (receipt in `docs/ops/handoff-2026-09-25.md`).
 - **Command pattern (hard rule — never print/echo/persist the token):**
 
   ```sh
@@ -99,8 +140,10 @@ agent's first message in this repo, without being reminded:
   `railway up` directly from another directory (incident 2026-09-25:
   Crest's Dockerfile got deployed to Railway — guard in place now).**
   The deploy script resolves the repo root, validates `railway.json` and
-  `app/main.py` presence, fetches the token via BWS inline (never echoed),
-  and polls the custom domain until `200` is reached or 6 minutes elapse.
+  `app/main.py` presence, fetches the token via BWS inline (never echoed
+  or traced), passes all three scope flags explicitly, and polls the
+  custom domain until `200` is reached or 6 minutes elapse, then also
+  checks the generated domain's `/healthz`.
 
 ## The Backlog File
 
@@ -115,6 +158,7 @@ compatible with it unless the Product Owner approves a format change.
 
 ## Editing Rules
 
+- Run `scripts/check.sh` before every commit; it must print `CHECK PASS`.
 - Keep docs concise, ASCII where practical. No secrets, tokens, passwords,
   or private personal data in repo docs — names and UUIDs only.
 - **Licensing (PO decision 2026-09-25):** proprietary commercial product;
