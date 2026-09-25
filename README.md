@@ -29,6 +29,10 @@ surface for a human to steer it.
   backlog.works API key when it needs the same commit path the web view
   uses.
 
+## Run locally
+
+`PORT=8080 python3 app/main.py` -- serves `/` (placeholder page) and `/healthz` (`200 ok`) on `0.0.0.0:$PORT`, stdlib only, no dependencies.
+
 ## Status
 
 Pre-alpha. Extracted from Crest's admin backlog board (see Origin below) as

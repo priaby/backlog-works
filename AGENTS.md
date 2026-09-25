@@ -56,7 +56,44 @@ agent's first message in this repo, without being reminded:
 - **Bitwarden:** the only secret currently in Crest's Bitwarden Secrets
   Manager relevant to this repo is the Railway deploy token, stored as
   `RAILWAY_PAT` (UUID `4852b697-a726-4c8b-99f4-b4d000db3493`) — name/UUID
-  only, never the value, per Crest's Bitwarden secret-handling rule.
+  only, never the value, per Crest's Bitwarden secret-handling rule. It is
+  a Railway **project token** (`RAILWAY_TOKEN` env var, not
+  `RAILWAY_API_TOKEN`), scoped to the project below only. It is read-mostly
+  in most of the CLI (`railway link`, `railway project rename` — no such
+  command exists — and other account-scope calls return `Unauthorized`),
+  but service creation and deploy succeed when the project/service/
+  environment are passed explicitly via CLI flags rather than relying on a
+  local `railway link` state file.
+- **Railway project:** name `marvelous-wisdom` (pre-existing, generic name
+  — no CLI rename path exists for a project-scoped token; renaming needs an
+  account-level PAT, left to the Product Owner if wanted), ID
+  `a611baf5-ab5c-432f-9370-88dab8c378c7`, workspace "My Projects" (ID
+  `fd88d265-ad97-4e65-96c2-f16bc43033b0`), environment `production` (ID
+  `58c03d4e-9dd6-4ae1-97c7-caa5248699fe`).
+- **Service:** name `backlog-works`, ID `d42bcadc-5c37-46b1-aee2-b6904d25b5b3`.
+  Deployed from this repo's `Dockerfile` (`python:3.12-slim`, stdlib-only
+  `app/main.py`, `GET /` placeholder page, `GET /healthz` → `200 ok`).
+  Generated domain: `https://backlog-works-production.up.railway.app`
+  (confirmed `200`/`ok` on both routes).
+- **Custom domain:** `backlog.works` attached
+  (`customDomainCreate` id `1a99d12f-c40c-41f1-a75b-0aae62b4d70a`). Railway
+  returned a required CNAME (`backlog.works` → `3vtl6rr0.up.railway.app`)
+  and an ownership-verification TXT host (`_railway-verify`). The domain
+  was purchased through Railway's own registrar, so DNS is expected to be
+  Railway-managed and to converge automatically; see
+  `docs/ops/handoff-2026-09-25.md` for the propagation/cert receipt as of
+  this session's close.
+- **Command pattern (hard rule — never print/echo/persist the token):**
+
+  ```sh
+  RAILWAY_TOKEN="$(cd /home/priaby/Projects/crest && python3 scripts/crest_bws.py get RAILWAY_PAT | tr -d '[:space:]')" \
+    railway <command> --project a611baf5-ab5c-432f-9370-88dab8c378c7 \
+    --service backlog-works --environment production
+  ```
+
+  Pass `--project`/`--service`/`--environment` explicitly on every call in
+  this repo; do not depend on `railway link` (it fails `Unauthorized` for
+  this project-scoped token even though direct-flag calls succeed).
 
 ## The Backlog File
 
