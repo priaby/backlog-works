@@ -136,7 +136,6 @@ CSS = """
 .bw-tone-h2       { --bw-tone-2: var(--bw-h2-2);       --bw-tone-5: var(--bw-h2-5);       --bw-tone-7: var(--bw-h2-7); }
 .bw-tone-h3       { --bw-tone-2: var(--bw-h3-2);       --bw-tone-5: var(--bw-h3-5);       --bw-tone-7: var(--bw-h3-7); }
 .bw-tone-h4       { --bw-tone-2: var(--bw-h4-2);       --bw-tone-5: var(--bw-h4-5);       --bw-tone-7: var(--bw-h4-7); }
-.bw-tone-waiting  { --bw-tone-2: var(--bw-h2-2);       --bw-tone-5: var(--bw-h2-5);       --bw-tone-7: var(--bw-h2-7); }
 
 /* Base layer: element selectors, no classes. */
 * { box-sizing: border-box; }
@@ -243,6 +242,7 @@ footer {
   font-size: var(--bw-text-xs); background: var(--bw-sunken); color: var(--bw-ink-2); overflow-wrap: anywhere;
 }
 .bw-chip--sprint { font-variant-numeric: tabular-nums; color: var(--bw-accent-7); background: var(--bw-accent-1); }
+.bw-chip--waiting { background: var(--bw-h2-2); color: var(--bw-h2-7); }
 
 /* bw-card, bw-rank, bw-controls */
 .bw-card-list { margin-top: var(--bw-space-6); }
@@ -280,11 +280,10 @@ footer {
   from { background: var(--bw-flash); box-shadow: 0 0 0 2px var(--bw-accent-6); }
   to { background: var(--bw-surface); box-shadow: inset 4px 0 0 var(--bw-tone-5), var(--bw-shadow-1); }
 }
+.bw-card__id { margin: 0 0 var(--bw-space-1); font-size: var(--bw-text-xs); font-weight: var(--bw-weight-strong); color: var(--bw-accent-7); font-variant-numeric: tabular-nums; }
 .bw-card__title { margin: 0 0 var(--bw-space-2); font-size: var(--bw-text-md); font-weight: var(--bw-weight-bold); line-height: var(--bw-leading-tight); }
-.bw-card__id { color: var(--bw-accent-7); font-variant-numeric: tabular-nums; }
-.bw-card__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: var(--bw-space-2); }
-.bw-card__waiting { margin: 0 0 var(--bw-space-2); font-size: var(--bw-text-xs); color: var(--bw-ink-2); }
-.bw-card__context { margin: 0; font-size: var(--bw-text-sm); color: var(--bw-ink-3); }
+.bw-card__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: var(--bw-space-3); }
+.bw-card__description { margin: 0; font-size: var(--bw-text-sm); color: var(--bw-ink-3); }
 .bw-controls {
   display: flex; justify-content: flex-end; gap: var(--bw-space-2); margin-top: var(--bw-space-3);
   padding-top: var(--bw-space-3); border-top: 1px solid var(--bw-line);

@@ -13,6 +13,8 @@ ROW_ID_RE = re.compile(r"^\| ([A-Z]\d{3})\. ")
 ID_ALPHABET = "ABCDEFGHJKLMNPRSTUVWXYZ"
 ITEM_ID_RE = re.compile(rf"[{ID_ALPHABET}][1-9][0-9]{{2}}")
 EXPECTED_CELLS = 5
+TITLE_MAX = 80
+DESCRIPTION_MAX = 280
 # Product Owner decision 2026-09-26, grounded in the Scrum Guide 2020 and
 # the ScrumPLoP "Definition of Ready" pattern: an ordinary item has no
 # status (empty cell); "Ready" = meets the Definition of Ready after
@@ -63,10 +65,18 @@ class Item:
         return "" if self.state == "done" else self.status
 
     @property
+    def notes(self) -> tuple[str, ...]:
+        """Status note parts split on <br>, stripped, empty parts dropped."""
+        return tuple(p.strip() for p in self.status_note.split("<br>") if p.strip())
+
+    @property
     def waiting_on(self) -> str:
-        """The named external condition when the note starts with "Waiting on:"."""
-        note = self.status_note
-        return note[len(WAITING_PREFIX):].strip() if note.startswith(WAITING_PREFIX) else ""
+        """The named external condition in the first note part that starts
+        with "Waiting on:", wherever it falls among the <br> parts."""
+        for note in self.notes:
+            if note.startswith(WAITING_PREFIX):
+                return note[len(WAITING_PREFIX):].strip()
+        return ""
 
 
 @dataclass(frozen=True)
@@ -211,6 +221,10 @@ def parse_backlog(markdown: str) -> Backlog:
         status, _, note = status_cell.partition("<br>")
         item = Item(item_id, title, cells[1], cells[2], status.strip(), note.strip(), cells[4], i + 1)
         items.append(item)
+        if len(title) > TITLE_MAX:
+            problems.append(f"line {i + 1}: {item_id} title is {len(title)} chars, max {TITLE_MAX}")
+        if len(cells[2]) > DESCRIPTION_MAX:
+            problems.append(f"line {i + 1}: {item_id} description is {len(cells[2])} chars, max {DESCRIPTION_MAX}")
     if any(ROW_ID_RE.match(l) for l in lines[end:]):
         problems.append("a second item block exists after the active table")
     title = fm.get("title") or next((l[2:].strip() for l in lines if l.startswith("# ")), "Product Backlog")

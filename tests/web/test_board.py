@@ -141,7 +141,7 @@ class BoardTests(unittest.TestCase):
         for fragment in ('class="bw-masthead__eyebrow">tenant', '<h1>Title</h1>',
                          'Description <code>code</code>.', 'Source updated n/a',
                          'class="bw-chip bw-chip--sprint">S4',
-                         'class="bw-pill bw-tone-waiting">Waiting</span> review',
+                         'class="bw-chip bw-chip--waiting">Waiting: review</span>',
                          '**literal** [link](url) <code>code</code>'):
             self.assertIn(fragment, page)
 
@@ -167,6 +167,53 @@ class BoardTests(unittest.TestCase):
         md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| K417. x | j | c |  | T |\n"
         page = render_board(parse_backlog(md), repo="r")
         self.assertNotIn('class="bw-pill', page)
+
+    def test_card_parts_in_order(self):
+        md = "| K417. Title | Job | ctx | In Progress<br>Sprint: S4 | Team |"
+        page = render_board(parse_backlog(md), repo="r")
+        pattern = (r'<article class="bw-card bw-tone-progress" id="K417"><p class="bw-card__id">K417</p>'
+                   r'<h2 class="bw-card__title">Title</h2><p class="bw-card__description">ctx</p>'
+                   r'<div class="bw-card__meta"><span class="bw-pill bw-tone-progress">In Progress</span>'
+                   r'<span class="bw-chip bw-chip--sprint">S4</span></div><div class="bw-controls"')
+        self.assertRegex(page, pattern)
+
+    def test_no_context_class_core_job_or_waiting_line(self):
+        md = "| K417. Title | UNIQUE-CORE-JOB | ctx | Ready | Team |"
+        page = render_board(parse_backlog(md), repo="r")
+        self.assertNotIn("UNIQUE-CORE-JOB", page)
+        self.assertNotIn("bw-card__context", page)
+        self.assertNotIn("bw-card__waiting", page)
+        self.assertNotIn("bw-tone-waiting", page)
+        self.assertNotIn("K417.", page)
+
+    def test_tag_chips_from_notes(self):
+        md = ("| K417. Title | Job | ctx | Ready<br>Sprint: S4<br>Due: 2026-10-01<br>"
+              "Waiting on: legal review<br>Needs design | Team |")
+        page = render_board(parse_backlog(md), repo="r")
+        expected = ('<span class="bw-chip bw-chip--sprint">S4</span>'
+                    '<span class="bw-chip">Due 2026-10-01</span>'
+                    '<span class="bw-chip bw-chip--waiting">Waiting: legal review</span>'
+                    '<span class="bw-chip">Needs design</span>')
+        self.assertIn(expected, page)
+        from backlogworks.web.board_assets import CSS
+        self.assertIn(".bw-chip--waiting", CSS)
+
+    def test_pill_rules(self):
+        md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| K417. x | j | c |  | T |\n"
+        page = render_board(parse_backlog(md), repo="r")
+        self.assertNotIn('class="bw-pill', page)
+        self.assertNotIn('class="bw-card__meta"', page)
+        page = render_board(parse_backlog("| K417. x | j | c | Done | T |"), repo="r")
+        self.assertIn('<span class="bw-pill bw-tone-done">Done</span>', page)
+        page = render_board(parse_backlog("| K417. x | j | c | Ready | T |"), repo="r")
+        self.assertIn('<span class="bw-pill bw-tone-ready">Ready</span>', page)
+
+    def test_limit_problems_show_as_format_notes(self):
+        md = "| K417. " + "T" * 81 + " | j | c | Ready | T |"
+        page = render_board(parse_backlog(md), repo="r")
+        self.assertIn('<aside class="bw-notice bw-notice--warn"><strong>Format notes</strong>', page)
+        self.assertIn('title is 81 chars, max 80', page)
+        self.assertIn("T" * 81, page)
 
     def test_demo_route_is_gone(self):
         from backlogworks.web.server import App

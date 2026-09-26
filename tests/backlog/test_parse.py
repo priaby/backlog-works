@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
-from backlogworks.backlog import FormatError, new_item_id, parse_backlog
+from backlogworks.backlog import DESCRIPTION_MAX, FormatError, TITLE_MAX, new_item_id, parse_backlog
 
 REPO_BACKLOG = Path(__file__).resolve().parents[2] / "docs/product/backlog.md"
 
@@ -137,6 +137,26 @@ class ParseTests(unittest.TestCase):
         b = parse_backlog(md)
         self.assertEqual(b.ids, ("K417",))
         self.assertEqual(len(b.problems), 2)
+
+    def test_notes_split_on_br_and_waiting_found_anywhere(self):
+        md = MINIMAL.replace(
+            "In Progress<br>Sprint: S1",
+            "Ready<br>Sprint: S4<br>Due: 2026-10-01<br>Waiting on: legal<br> <br>free text",
+        )
+        b = parse_backlog(md)
+        self.assertEqual(b.items[0].notes, ("Sprint: S4", "Due: 2026-10-01", "Waiting on: legal", "free text"))
+        self.assertEqual(b.items[0].waiting_on, "legal")
+
+    def test_title_and_description_limits(self):
+        md = MINIMAL.replace("First", "T" * (TITLE_MAX + 1)).replace("ctx `code`", "c" * (DESCRIPTION_MAX + 1))
+        b = parse_backlog(md)
+        self.assertEqual(b.problems, (
+            f"line 9: K417 title is {TITLE_MAX + 1} chars, max {TITLE_MAX}",
+            f"line 9: K417 description is {DESCRIPTION_MAX + 1} chars, max {DESCRIPTION_MAX}",
+        ))
+        self.assertEqual(b.items[0].title, "T" * (TITLE_MAX + 1))
+        md_ok = MINIMAL.replace("First", "T" * TITLE_MAX).replace("ctx `code`", "c" * DESCRIPTION_MAX)
+        self.assertEqual(parse_backlog(md_ok).problems, ())
 
 
 class NewIdTests(unittest.TestCase):

@@ -9,8 +9,9 @@ J709. No imports from other backlogworks modules.
 """
 
 from backlogworks.backlog.model import (
-    KNOWN_STATUSES, STATUSES, WAITING_PREFIX, Backlog, FormatError, Item, new_item_id, parse_backlog,
+    DESCRIPTION_MAX, KNOWN_STATUSES, STATUSES, TITLE_MAX, WAITING_PREFIX,
+    Backlog, FormatError, Item, new_item_id, parse_backlog,
 )
 
-__all__ = ["KNOWN_STATUSES", "STATUSES", "WAITING_PREFIX", "Backlog", "FormatError", "Item",
-           "new_item_id", "parse_backlog"]
+__all__ = ["DESCRIPTION_MAX", "KNOWN_STATUSES", "STATUSES", "TITLE_MAX", "WAITING_PREFIX", "Backlog",
+           "FormatError", "Item", "new_item_id", "parse_backlog"]

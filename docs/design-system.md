@@ -187,7 +187,6 @@ read only these, never a ramp directly:
 | `bw-tone-done` | `--bw-done-*` |
 | `bw-tone-neutral` | `--bw-neutral-*` (default when no tone class) |
 | `bw-tone-h1` .. `bw-tone-h4` | `--bw-h1-*` .. `--bw-h4-*` |
-| `bw-tone-waiting` | `--bw-h2-*` (mustard) |
 
 Custom statuses (any status other than `In Progress`, `Ready`, `Done`,
 empty) get `bw-tone-h{n}` with `n = zlib.crc32(status.encode()) % 4 + 1`
@@ -269,12 +268,14 @@ Status label. `<span class="bw-pill bw-tone-*">`.
   not contain: icons, buttons, notes.
 
 ### bw-chip
-Neutral metadata (core job, sprint). `<span class="bw-chip">`.
-- Radius pill, padding 2px 10px, `--bw-text-xs`, bg sunken, text ink-2.
-- `bw-chip--sprint`: `font-variant-numeric: tabular-nums`, text
-  accent-7, bg accent-1.
-- Not interactive, never coloured by status. Wraps with
-  `overflow-wrap: anywhere`.
+Metadata from the status note, one chip per `<br>` part. `<span
+class="bw-chip">`. Radius pill, padding 2px 10px, `--bw-text-xs`, bg
+sunken, text ink-2 (plain chips: `Due: X` shows "Due X"; any other part
+shows its text). `bw-chip--sprint`: `Sprint: X` shows "X", tabular
+nums, text accent-7, bg accent-1. `bw-chip--waiting`: `Waiting on: X`
+shows "Waiting: X", text h2-7 on h2-2 (mustard). Not interactive, never
+coloured by status, never the core job. Wraps with `overflow-wrap:
+anywhere`.
 
 ### bw-card
 One backlog item. `<div class="bw-card-row">` (grid: rank column 32px
@@ -292,13 +293,20 @@ phone / 40px from 640px, gap 12px) holding `bw-rank` and
   `animationend`): keyframes `bw-moved` from bg flash plus
   `0 0 0 2px var(--bw-accent-6)` to rest, over `--bw-flash-duration`
   ease-out.
-- Parts: `bw-card__title` (h2, `--bw-text-md`, strong, leading tight),
-  `bw-card__id` (accent-7, tabular nums), `bw-card__meta` (flex wrap,
-  gap 6px: pill, chips), `bw-card__waiting` (`--bw-text-xs`, ink-2, a
-  `bw-pill bw-tone-waiting` then text), `bw-card__context` (sm, ink-3),
-  then optional `bw-controls` last.
+- Parts, in this order and nothing else: `bw-card__id` (`<p>`, the id
+  with no trailing period, xs strong, accent-7, tabular nums),
+  `bw-card__title` (h2, `--bw-text-md`, bold, leading tight),
+  `bw-card__description` (`<p>`, the Context column, sm, ink-3),
+  `bw-card__meta` (flex wrap, gap 6px, margin-top `--bw-space-3`: the
+  status pill, then tag chips; omitted when empty), then `bw-controls`.
+- Pill: none for an open item with no stage; Ready, In Progress or a
+  custom stage shows a pill in its tone; a done item shows the Done
+  pill. The Core Job column stays in the file and is not rendered.
+- Title up to 80 characters, description up to 280; the format keeps
+  cards short.
 - May contain: exactly those parts in that order. May not contain: a
-  second heading, links other than inside context text, primary buttons.
+  second heading, links other than inside the description, primary
+  buttons, a waiting line.
 - The list container is `bw-card-list` (`#cards`): block, no padding; it
   carries no visual style of its own.
 

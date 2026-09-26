@@ -6,6 +6,7 @@ backlog is validated by the same code the product ships. Adds two
 repo-process checks that are not the parser's job because tenants may use
 custom statuses: the frontmatter `updated:` must be an ISO date, and every
 item status must be in this repo's own three-status legend.
+Title and description length limits come from the parser (TITLE_MAX, DESCRIPTION_MAX).
 Exit 0 clean, 1 violations, 2 usage.
 """
 

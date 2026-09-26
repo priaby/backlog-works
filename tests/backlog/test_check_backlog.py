@@ -31,6 +31,16 @@ class CheckBacklogTests(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertIn(f"FAIL {path}: line 10: A100 status 'Shipped' not in legend", out.getvalue())
 
+    def test_over_limit_title_fails(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "backlog.md"
+            path.write_text(MINIMAL.replace("First", "T" * 81), encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = check_backlog.main(["x", str(path)])
+            self.assertEqual(code, 1)
+            self.assertIn(f"FAIL {path}: line 9: K417 title is 81 chars, max 80", out.getvalue())
+
     def test_clean_file_passes(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "backlog.md"

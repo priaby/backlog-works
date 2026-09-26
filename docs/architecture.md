@@ -300,7 +300,9 @@ No backlog content at rest. A restart loses only the in-memory read cache.
    under Open. `scripts/check_backlog.py` holds this repo's own
    `docs/product/backlog.md` to the three-status legend (repo-process
    rule). Legend-declared vocabularies are R685 (Configurable statuses per
-   backlog).
+   backlog). Title at most 80 characters and Context (the card
+   description) at most 280 (`TITLE_MAX`, `DESCRIPTION_MAX`, measured with
+   `len()`); longer cells are parse problems, never truncated.
 10. **Reader and writer are different contracts.** `parse_backlog` is a
     tolerant reader for display (records problems, never raises on a
     row). The write path (J709) works on raw row byte slices with exact
@@ -353,6 +355,7 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 | 2026-09-26 | Unknown GitHub outcome shown as "verifying", resolved on next request | PO default accepted | never |
 | 2026-09-26 | Commissioner is the product typeface, self-hosted at `/assets/fonts/` (two woff2 files, immutable cache), CSP `font-src 'self'` | PO decision; no third-party origin | the licence or the font files change |
 | 2026-09-26 | Two-tier status (state open/done from the Status cell, stage = the open item's optional status); fixed view control Open / In progress / Done / All, default Open, custom stages under Open; supersedes the 2026-09-26 statuses-only selector | PO decision | R685 lands |
+| 2026-09-26 | Card shows id, title, description, status pill and note tags only (core job not rendered); title max 80 and Context max 280 characters as parse problems | PO decision (Twitter-style limits keep cards short) | the PO changes a limit |
 
 ## 7. Known debt
 

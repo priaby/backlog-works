@@ -11,7 +11,6 @@ from backlogworks.backlog import Backlog, Item
 from backlogworks.web.board_assets import CSS, SCRIPT
 
 _CODE_RE = re.compile(r"`([^`]+)`")
-_SPRINT_RE = re.compile(r"\bSprint:\s*([^,;\n]+)")
 
 _MOVES = (("up", "Move up", "M6 15l6-6 6 6"),
           ("down", "Move down", "M6 9l6 6 6-6"),
@@ -19,6 +18,10 @@ _MOVES = (("up", "Move up", "M6 15l6-6 6 6"),
 
 _VIEWS = (("open", "Open"), ("progress", "In progress"), ("done", "Done"), ("all", "All"))
 _DEFAULT_VIEW = "open"
+
+_NOTE_TAGS = (("Sprint:", "{}", " bw-chip--sprint"),
+              ("Due:", "Due {}", ""),
+              ("Waiting on:", "Waiting: {}", " bw-chip--waiting"))
 
 
 def _tone(status: str) -> str:
@@ -39,6 +42,14 @@ def _tone(status: str) -> str:
 def _inline(text: str) -> str:
     """Escape first; backtick code spans are the only supported markup."""
     return _CODE_RE.sub(r"<code>\1</code>", html.escape(text))
+
+
+def _chip(note: str) -> str:
+    for prefix, label, modifier in _NOTE_TAGS:
+        if note.startswith(prefix):
+            value = note[len(prefix):].strip()
+            return f'<span class="bw-chip{modifier}">{_inline(label.format(value))}</span>' if value else ""
+    return f'<span class="bw-chip">{_inline(note)}</span>'
 
 
 def _svg(path: str) -> str:
@@ -62,25 +73,24 @@ def _controls(item: Item, *, is_first: bool, is_last: bool) -> str:
 
 def _card(rank: int, item: Item, *, is_first: bool, is_last: bool) -> str:
     tone = _tone(item.status)
-    custom = " bw-pill--custom" if tone.startswith("h") else ""
-    pill = (f'<span class="bw-pill bw-tone-{tone}{custom}">'
-            f'{_inline(item.status)}</span>') if item.status else ""
-    notes = item.status_note.replace("<br>", "\n")
-    sprint = _SPRINT_RE.search(notes)
-    sprint_chip = f'<span class="bw-chip bw-chip--sprint">{_inline(sprint[1].strip())}</span>' if sprint else ""
-    waiting = ""
-    if item.waiting_on:
-        condition = item.waiting_on.split("<br>", 1)[0]
-        waiting = (f'<p class="bw-card__waiting"><span class="bw-pill bw-tone-waiting">Waiting</span> '
-                   f'{_inline(condition)}</p>')
+    if item.state == "done":
+        pill = '<span class="bw-pill bw-tone-done">Done</span>'
+    elif item.stage:
+        custom = " bw-pill--custom" if tone.startswith("h") else ""
+        pill = f'<span class="bw-pill bw-tone-{tone}{custom}">{_inline(item.stage)}</span>'
+    else:
+        pill = ""
+    meta = pill + "".join(_chip(n) for n in item.notes)
+    meta_div = f'<div class="bw-card__meta">{meta}</div>' if meta else ""
     return (
         f'<div class="bw-card-row" data-id="{html.escape(item.id)}" '
         f'data-state="{item.state}" data-stage="{html.escape(item.stage)}" tabindex="-1">'
         f'<span class="bw-rank" aria-label="Priority {rank}">{rank}</span>'
         f'<article class="bw-card bw-tone-{tone}" id="{html.escape(item.id)}">'
-        f'<h2 class="bw-card__title"><span class="bw-card__id">{_inline(item.id)}.</span> {_inline(item.title)}</h2>'
-        f'<div class="bw-card__meta">{pill}<span class="bw-chip">{_inline(item.core_job)}</span>{sprint_chip}</div>'
-        f'{waiting}<p class="bw-card__context">{_inline(item.context)}</p>'
+        f'<p class="bw-card__id">{_inline(item.id)}</p>'
+        f'<h2 class="bw-card__title">{_inline(item.title)}</h2>'
+        f'<p class="bw-card__description">{_inline(item.context)}</p>'
+        f'{meta_div}'
         f'{_controls(item, is_first=is_first, is_last=is_last)}'
         '</article></div>'
     )
