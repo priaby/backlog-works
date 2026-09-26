@@ -40,7 +40,7 @@ Load the skill whose trigger matches the task, once, at the start:
 | `backlog-works-report` | session start (takeover), any Product Owner report, session close handoff |
 | `backlog-works-backlog` | reading, editing, reordering, or changing status in `docs/product/backlog.md`; picking the next item |
 | `backlog-works-deploy` | deploying, verifying a release, checking Railway/domain status |
-| `backlog-works-extraction` | porting code from Crest for J709 (Extract backlog source module), U695 (Extract renderer/board) and their tests |
+| `backlog-works-extraction` | porting code from Crest for J709 (Persist backlog changes to the repo), U695 (Board on the phone: status views, reorder controls, design foundations) and their tests |
 | `backlog-works-secrets` | fetching `RAILWAY_PAT`, adding a Railway variable, documenting any credential |
 
 This file's directives win over any skill. A skill never authorises an
@@ -67,7 +67,7 @@ These generalise from Crest's Product Owner directives and apply from an
 agent's first message in this repo, without being reminded:
 
 - **Name every PBI in full.** Never a bare index; write the id
-  with its title, e.g. "U695 (Extract renderer/board)" — look it up in
+  with its title, e.g. "U695 (Board on the phone: status views, reorder controls, design foundations)" — look it up in
   `docs/product/backlog.md`, don't guess. A table may use the number alone
   only when the title appears in the same row.
 - **One report per milestone, not per step.** No "waiting"/"still

@@ -13,8 +13,8 @@ related: ["docs/ops/handoff-2026-09-25.md"]
 Document order is priority order. The Product Owner orders this table and
 selects `Ready` items into a Sprint (`In Progress`); the team works the
 highest `In Progress` row first and reports it for acceptance, or parks it
-with `Waiting on: <condition>` in its Status cell. Rows below are seeded
-from the Crest extraction inventory as ordinary items.
+with `Waiting on: <condition>` in its Status cell. This file is also what
+`https://backlog.works` renders: the product's first tenant is itself.
 
 > [!info] Status legend (Product Owner decision 2026-09-26)
 > An ordinary item has an empty Status cell. Three statuses exist:
@@ -34,12 +34,15 @@ from the Crest extraction inventory as ordinary items.
 
 | Item (PBI) | Core Job | Context | Status | Driver |
 |---|---|---|---|---|
-| J709. Extract backlog source module | Read and write the backlog file without Crest's account system | Port `backlog_source.py`'s GitHub Contents API read (ETag cache) and validated reorder/commit path; replace Crest-specific owner/repo/path/committer constants with config. See Crest's `artifacts/checks/backlog-works-extraction-inventory-2026-09-25.md` Section A/E. |  | Team |
-| U695. Extract renderer/board | See the backlog as readable cards on a phone | Port `admin_content.py`'s markdown-to-HTML injection technique and `backlog-board.html`'s card renderer; swap Crest brand CSS/JS for a new, unbranded design. |  | Team |
-| N835. Standalone sign-in (magic-link email) | Sign in as the Product Owner without Crest's account system | Replace Crest's owner-session + step-up flow (Section D of the inventory) with a magic-link email sign-in scoped to this product only. |  | Team |
-| F196. API key for agents | Let an agentic team read and write the backlog without a human session | Issue a per-repo API key with the same write-path validation as the web reorder path (same id set, same per-row cell count, only order changes). |  | Team |
-| F122. Railway deploy of a hello-world service on backlog.works | Prove the deploy path works before building product on top of it | Stand up the smallest possible service on Railway, wire the `backlog.works` domain, confirm it answers over HTTPS. Uses the `RAILWAY_PAT` secret already in Crest's Bitwarden (UUID `4852b697-a726-4c8b-99f4-b4d000db3493`). Implemented 2026-09-25: service `backlog-works` on Railway, `https://backlog.works` answers `HTTP/2 200` and `/healthz` returns `ok` (receipt in `docs/ops/handoff-2026-09-25.md`); deploy path is `scripts/deploy.sh`. Accepted by the Product Owner 2026-09-26. | Done | Team |
-| G761. Brand and landing page | Give the product a public face distinct from Crest | Name, mark, and a one-page pitch at `backlog.works` explaining the product (see README "Why"/"How it works"). |  | Team |
+| U695. Board on the phone: status views, reorder controls, design foundations | Read and reorder the backlog on a phone without opening the markdown | One board engine for every tenant and the landing. View selector follows the status vocabulary (custom statuses appear automatically), cards carry up / down / top controls, a design system (tokens, primitives, vibrant hover states; Crest structure, Fizzy-grade colour) so no component is invented twice. Order changes preview locally until J709 (Persist backlog changes to the repo) lands. | In Progress<br>Sprint: S1 | Team |
+| J709. Persist backlog changes to the repo | Move a card from a phone and have the file in the repo change in the same commit | `BacklogSource` over the GitHub Contents API: read with ETag cache, validated reorder and single-cell status change on raw row slices (same id multiset, same cell counts, nothing else changes), commit with blob `sha` guard, push webhook drops the cache. Ports Crest's `backlog_source.py` behind config. |  | Team |
+| N835. Product Owner sign-in (magic-link email) | Sign in from a phone with no password and no Crest account | Magic link via the Mailjet sub-account (`MAIL_FROM=noreply@backlog.works`), session cookie, CSRF, sign-out. Waiting on the three Mailjet TXT records in Railway DNS before mail can send. |  | Team |
+| F196. API key for agents | Let an agentic team read and write the backlog without a human session | Per-repo API key; the same write-path validation as the web reorder path; key ids in the timeline, never key values. |  | Team |
+| R685. Configurable statuses per backlog | Use the team's own workflow words without asking the vendor | The legend block in the markdown declares the vocabulary and its order; parser, checker, selector and pills follow it; the default stays the four Scrum-grounded states. |  | Team |
+| R905. Live updates on the phone | See a teammate's or an agent's change without reloading | Server-sent events after every commit and every webhook, reconnect-safe, no third-party service (architecture section 3, "Freshness"). |  | Team |
+| G761. Brand and landing page | Give the product a public face distinct from Crest | Name, mark, one-paragraph pitch above the board, meta tags and a share image; nothing that competes with the board for attention. |  | Team |
+| C949. Product documentation at /docs | Set up a repo in ten minutes without asking anyone | File format and status legend, id scheme, how ordering and acceptance work, API reference; served from markdown packaged in the image. |  | Team |
+| K507. Item type field | Tell a bug from a feature on the board | Optional type column or legend-declared types (`bug`, `chore`); type chip on the card; no separate bug section. Product Owner note 2026-09-26: "might be later". |  | Team |
+| G513. Partner pitch one-pager | Have something to show a potential partner or early user | Problem, how it works, status, ask. Depends on G761 (Brand and landing page) for visual identity. |  | Team |
+| F122. Railway deploy of a hello-world service on backlog.works | Prove the deploy path works before building product on top of it | Service `backlog-works` on Railway, `https://backlog.works` answers `HTTP/2 200`, `/healthz` returns `ok`; deploy path is `scripts/deploy.sh` (receipt in `docs/ops/handoff-2026-09-25.md`). Accepted by the Product Owner 2026-09-26. | Done | Team |
 | V645. Licence decision | Decide what licence, if any, governs this repo | PO decided 2026-09-25: proprietary, all rights reserved (see LICENSE). | Done | Product Owner |
-| G513. Partner pitch one-pager | Have something to show a potential partner or early user | A concise one-pager: problem, how it works, status, ask. Depends on G761 (Brand and landing page) for visual identity. |  | Team |
-

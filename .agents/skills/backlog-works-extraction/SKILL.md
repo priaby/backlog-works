@@ -1,6 +1,6 @@
 ---
 name: backlog-works-extraction
-description: Port backlog-board code from the Crest repository into backlog.works (J709 Extract backlog source module, U695 Extract renderer/board, and their tests). Use when reading Crest source as a porting reference.
+description: Port backlog-board code from the Crest repository into backlog.works (J709 Persist backlog changes to the repo, U695 Board on the phone, and their tests). Use when reading Crest source as a porting reference.
 ---
 
 # Porting from Crest
