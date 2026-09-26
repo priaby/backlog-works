@@ -45,6 +45,14 @@ class ParseTests(unittest.TestCase):
         self.assertTrue(any("duplicate id PBI-001" in p for p in b.problems))
         self.assertTrue(any("not in legend" in p for p in b.problems))
 
+    def test_waiting_note(self):
+        md = MINIMAL.replace("Planned<br>Sprint: S1", "Planned<br>Waiting on: legal sign-off")
+        b = parse_backlog(md)
+        self.assertEqual(b.items[0].status, "Planned")
+        self.assertEqual(b.items[0].waiting_on, "legal sign-off")
+        self.assertEqual(b.items[1].waiting_on, "")
+        self.assertEqual(b.problems, ())
+
     def test_two_in_progress_flagged(self):
         two = MINIMAL.replace("Planned<br>Sprint: S1", "In Progress").replace("| Done |", "| In Progress |")
         self.assertIn("more than one row is `In Progress`", parse_backlog(two).problems)

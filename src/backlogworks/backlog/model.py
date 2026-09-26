@@ -10,16 +10,17 @@ from dataclasses import dataclass, field
 ROW_ID_RE = re.compile(r"^\| (PBI-\d+[a-z]?)\. ")
 ROW_PREFIX = "| PBI-"
 EXPECTED_CELLS = 5
+# Product Owner decision 2026-09-26: five statuses. A blocked item keeps its
+# status and carries a "Waiting on: <condition>" note after <br>; cancelled
+# rows are deleted from the file (git history keeps them).
 STATUSES = (
-    "Proposed",
-    "Ready",
+    "Candidate",
     "Planned",
     "In Progress",
-    "Waiting",
-    "Ready for Product Owner review",
+    "Review",
     "Done",
-    "Cancelled",
 )
+WAITING_PREFIX = "Waiting on:"
 
 
 class FormatError(ValueError):
@@ -40,6 +41,12 @@ class Item:
     @property
     def status_known(self) -> bool:
         return self.status in STATUSES
+
+    @property
+    def waiting_on(self) -> str:
+        """The named external condition when the note starts with "Waiting on:"."""
+        note = self.status_note
+        return note[len(WAITING_PREFIX):].strip() if note.startswith(WAITING_PREFIX) else ""
 
 
 @dataclass(frozen=True)

@@ -2,7 +2,7 @@
 title: "backlog.works Architecture"
 doc_type: architecture
 status: active
-updated: 2026-09-25
+updated: 2026-09-26
 related: ["product/backlog.md", "../AGENTS.md", "../scripts/check_architecture.py"]
 ---
 
@@ -41,7 +41,7 @@ flowchart LR
     events -.-> notify & timeline[(timeline / outbox<br/>SQLite)]
   end
   BW -->|Contents API read / commit| GH
-  notify -->|magic-link mail, PO digest| MAIL[Email provider<br/>PBI-003 chooses]
+  notify -->|magic-link mail| MAIL[Mailjet Send API<br/>sub-account key]
 ```
 
 The backlog **file in the customer's repo is the only source of truth**.
@@ -57,12 +57,12 @@ what is deployed is evidenced separately in `docs/ops/`.
 
 | Block | Responsibility | Publishes | Subscribes | As-is | Next |
 |---|---|---|---|---|---|
-| `config` | every env var, read once into one frozen dataclass | | | `PORT` | `BASE_URL`, `GITHUB_*`, `BACKLOG_PATH`, `SESSION_SECRET`, `DATABASE_PATH`, mail |
+| `config` | every env var, read once into one frozen dataclass | | | `PORT` | `BASE_URL`, `GITHUB_*`, `GITHUB_WEBHOOK_SECRET`, `BACKLOG_PATH`, `SESSION_SECRET`, `DATABASE_PATH`, `MAILJET_API_KEY`, `MAILJET_API_SECRET`, `MAIL_FROM` |
 | `events` | `Event` envelope, `EventBus` (sync, in-process, registration-ordered, subscriber-isolated), audit sink; next: the append-only `events` table (timeline) and the generic `outbox` table with a transactional staging API and lease/ack API | `events.handler_failed` | | bus + stderr audit | timeline append, outbox staging and leasing |
 | `backlog` | file format as data: parse table, legend, items; validate reorder and single-cell status change; emit new text. **Pure, no I/O, no internal imports.** | | | parse | reorder / status change (PBI-001) |
 | `github` | Contents API read (ETag cache) and commit (blob `sha` guard); `push` webhook receiver with signature check | `backlog.loaded`, `backlog.committed`, `backlog.commit_conflicted`, `backlog.file_changed` | `backlog.file_changed` (drop cache) | empty | PBI-001 |
 | `auth` | magic-link sign-in, PO session cookie, CSRF, per-repo API keys; owns its tables; stages the private mail job through the events outbox API in the same transaction as its state | `auth.signin_requested`, `auth.signed_in`, `auth.signed_out`, `auth.key_issued`, `auth.key_revoked`, `auth.key_used` | | empty | PBI-003, PBI-004 |
-| `notify` | delivery worker: leases mail jobs from the events outbox, sends, acks; retries with backoff and dead-letters; never called directly, never reads another block's tables | `notify.sent`, `notify.failed` | outbox jobs of kind `mail`; `backlog.item_status_changed` (stages a PO digest job) | empty | PBI-003 |
+| `notify` | delivery worker: leases mail jobs from the events outbox, sends via the Mailjet Send API (HTTPS), acks; retries with backoff and dead-letters; never called directly, never reads another block's tables | `notify.sent`, `notify.failed` | outbox jobs of kind `mail`; `backlog.item_status_changed` (stages a PO digest job) | empty | PBI-003 |
 | `demo` | fictitious tenant `demo/lighthouse` packaged with the image, for showing the board before a real tenant exists | `backlog.loaded` (`sha` = content hash) | | `/demo`, read-only | hidden once a tenant is configured |
 | `landing` | public `/` and pitch pages | | | placeholder + link to demo | PBI-006 (Brand and landing page) |
 | `docs` | product documentation at `/docs/*` from markdown packaged in the image | | | empty | first pages: file format and status legend (with PBI-001), API reference (with PBI-004) |
@@ -170,12 +170,17 @@ cache and refetches (a truncated change list is treated as "changed").
 Force pushes and deletions of the file are recorded as changes and shown
 as format problems on the board, never auto-repaired.
 
-### Freshness on the phone
+### Freshness on the phone (live from v1, PO decision 2026-09-26)
 
-The board is server-rendered HTML; freshness is on load or manual refresh
-and the page says when it was read. Live push to an open page (SSE with
-resume from `seq`) is deferred and, if ever built, is a separate
-authenticated endpoint; the in-process bus does not reach browsers.
+The board is server-rendered HTML and, once open, subscribes to
+`GET /api/events?since=<seq>` (Server-Sent Events, authenticated like the
+board, one thread per connection on the stdlib server). `web` owns the
+endpoint; it is a post-commit observer of `backlog.*` events for the
+session's repo and pushes `{seq, event, id}` frames; the page refetches the
+board fragment on a frame and reconnects with the last `seq` after a drop.
+The in-process bus never reaches browsers directly; SSE is a subscriber
+like any other and cannot fail a command. Cap concurrent streams per repo
+and send a heartbeat every 25 s so mobile proxies keep the connection.
 
 ### Event catalogue (next state)
 
@@ -267,9 +272,11 @@ No backlog content at rest. A restart loses only the in-memory read cache.
    block, run by `scripts/check.sh`.
 9. **The format contract**: first contiguous `| PBI-` block, rows
    `| PBI-<n>[a-z]. Title | Core Job | Context | Status[<br>note] | Driver |`.
-   The eight statuses in `backlog.STATUSES` are canonical; the file's
-   legend callout is documentation, validated against them, not a source
-   of custom vocabularies. The repo's own `docs/product/backlog.md` is
+   The five statuses in `backlog.STATUSES` (`Candidate`, `Planned`,
+   `In Progress`, `Review`, `Done`; PO decision 2026-09-26) are canonical
+   for every tenant; a blocked item adds `Waiting on: <condition>` in the
+   note; cancelled rows are deleted. The file's legend callout is
+   documentation, not a source of custom vocabularies. The repo's own `docs/product/backlog.md` is
    checked by the same parser.
 10. **Reader and writer are different contracts.** `parse_backlog` is a
     tolerant reader for display (records problems, never raises on a
@@ -305,7 +312,15 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 | 2026-09-25 | Mandatory recording in the command transaction; observers post-commit and isolated | independent review finding 1: subscribers cannot be both isolated and required | never |
 | 2026-09-25 | `events` owns a generic outbox with private job payloads; `notify` is the delivery worker | review finding 2: magic-link mail cannot be built from a hashed event | a second delivery kind that needs its own worker |
 | 2026-09-25 | `operations` intent record around every GitHub write; uncertain outcomes surfaced, never retried blindly | review finding 1: GitHub and SQLite cannot share a transaction | never |
-| 2026-09-25 | Freshness on load or refresh; no live push in the next state | review finding 12 | a Product Owner asks for it |
+| 2026-09-26 | Live updates from v1 via SSE as a post-commit observer | PO decision (supersedes 2026-09-25 "refresh only") | stdlib thread-per-stream shows strain |
+| 2026-09-26 | Five statuses, fixed for all tenants; `Waiting on:` note; cancelled rows deleted | PO: "too many statuses" | a tenant needs a different lifecycle |
+| 2026-09-26 | Direct commits to the configured branch, no PR mode | PO default accepted | a customer's branch protection blocks it |
+| 2026-09-26 | Agents change status only; Product Owner reorders and sets Done | PO default accepted | never |
+| 2026-09-26 | Webhook required for tenant onboarding (push -> `backlog.file_changed`) | PO: "we'll need webhooks" | never |
+| 2026-09-26 | Mail via Mailjet Send API over HTTPS, a dedicated sub-account API key under the existing Mailjet login | Railway blocks SMTP below Pro; HTTPS works on every plan; sub-account keeps the two products apart | provider terms or deliverability |
+| 2026-09-26 | Timeline kept forever, emails hashed | PO default accepted | a retention request |
+| 2026-09-26 | First tenant is this repository (dogfood) | PO default accepted | partner onboarding |
+| 2026-09-26 | Unknown GitHub outcome shown as "verifying", resolved on next request | PO default accepted | never |
 
 ## 7. Known debt
 

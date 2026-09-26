@@ -12,14 +12,11 @@ _CODE_RE = re.compile(r"`([^`]+)`")
 _PBI_RE = re.compile(r"\b(PBI-\d+[a-z]?)\b")
 
 STATUS_CLASS = {
-    "Proposed": "s-proposed",
-    "Ready": "s-ready",
+    "Candidate": "s-candidate",
     "Planned": "s-planned",
     "In Progress": "s-progress",
-    "Waiting": "s-waiting",
-    "Ready for Product Owner review": "s-review",
+    "Review": "s-review",
     "Done": "s-done",
-    "Cancelled": "s-cancelled",
 }
 
 CSS = """
@@ -38,16 +35,16 @@ CSS = """
   .ctx { color: var(--muted); font-size:.9em; margin:0; }
   .meta { display:flex; flex-wrap:wrap; gap:.4em; margin-top:.6em; align-items:center; font-size:.8em; }
   .pill { border-radius:999px; padding:.15em .6em; font-weight:600; white-space:nowrap; }
-  .s-proposed{background:#eee;color:#555} .s-ready{background:#e8f0fe;color:#1a4fbf}
-  .s-planned{background:#e6f4ea;color:#1e7b3a} .s-progress{background:#fff1cc;color:#8a5a00}
-  .s-waiting{background:#fde8e8;color:#a12a2a} .s-review{background:#efe6fd;color:#5b2ea6}
-  .s-done{background:#d9f2e0;color:#0f5a2b;text-decoration:none} .s-cancelled{background:#eee;color:#888;text-decoration:line-through}
+  .s-candidate{background:#eee;color:#555} .s-planned{background:#fff1cc;color:#8a5a00}
+  .s-progress{background:#e6f4ea;color:#1e7b3a} .s-review{background:#efe6fd;color:#5b2ea6}
+  .s-done{background:#d9f2e0;color:#0f5a2b} .s-waiting{background:#fde8e8;color:#a12a2a}
+  .s-unknown{background:#fde8e8;color:#a12a2a;outline:1px dashed #a12a2a}
   .note { color: var(--muted); }
   .rank { color: var(--muted); font-size:.8em; }
   .problems { background:#fff4e5; border:1px solid #f5d29c; border-radius:.6em; padding:.6em .9em; font-size:.85em; }
   code { background: var(--bg); padding:0 .25em; border-radius:.3em; font-size:.92em; }
   footer { color: var(--muted); font-size:.8em; text-align:center; padding:1.5em; }
-  .card.done, .card.cancelled { opacity:.7; }
+  .card.done { opacity:.7; }
 """
 
 
@@ -58,9 +55,12 @@ def _inline(text: str) -> str:
 
 
 def _card(rank: int, item: Item) -> str:
-    cls = STATUS_CLASS.get(item.status, "s-proposed")
-    extra = " done" if item.status == "Done" else " cancelled" if item.status == "Cancelled" else ""
-    note = f'<span class="note">{_inline(item.status_note)}</span>' if item.status_note else ""
+    cls = STATUS_CLASS.get(item.status, "s-unknown")
+    extra = " done" if item.status == "Done" else ""
+    if item.waiting_on:
+        note = f'<span class="pill s-waiting">Waiting</span><span class="note">on {_inline(item.waiting_on)}</span>'
+    else:
+        note = f'<span class="note">{_inline(item.status_note)}</span>' if item.status_note else ""
     return (
         f'<article class="card{extra}" id="{html.escape(item.id)}">'
         f'<div class="top"><span class="id">{html.escape(item.id)}</span><span class="rank">#{rank}</span></div>'

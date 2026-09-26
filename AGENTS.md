@@ -80,8 +80,8 @@ agent's first message in this repo, without being reminded:
   vault writes, brand/license calls) in the next handoff instead of asking
   mid-task.
 - **One PBI in progress at a time.** Work one backlog item at a time; pull
-  the next only after the current one is merged and reported for Product
-  Owner review, or is parked with its blocking condition named.
+  the next only after the current one is merged and moved to `Review`, or
+  is parked with `Waiting on: <condition>` in its Status cell.
 - **The team never creates Product Backlog Items on its own.** Work the
   Product Owner asks for happens inside the active item; findings and ideas
   are proposals in the report, and become PBIs only when the Product Owner
@@ -159,8 +159,10 @@ agent's first message in this repo, without being reminded:
 `docs/product/backlog.md` is the product backlog in the product's own
 format: a markdown table whose rows begin `| PBI-<digits>` in the table's
 active section, columns `Item (PBI)`, `Core Job`, `Context`, `Status`,
-`Driver`, plus a `## Bugs` section below it. See the file itself for the
-current status legend. This format (and the row-reorder invariants a future
+`Driver`, plus a `## Bugs` section below it. Statuses (PO decision
+2026-09-26): `Candidate`, `Planned`, `In Progress`, `Review`, `Done`;
+blocked work adds `Waiting on: <condition>` after `<br>`; cancelled rows are
+deleted. This format (and the row-reorder invariants a future
 write path should enforce — same id set, same per-row cell count, only row
 order changes) is inherited from Crest's `backlog_source.py` design; keep
 compatible with it unless the Product Owner approves a format change.

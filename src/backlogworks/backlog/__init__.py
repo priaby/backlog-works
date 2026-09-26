@@ -8,6 +8,6 @@ status legend is the vocabulary. Reorder and status-change validation
 PBI-001. No imports from other backlogworks modules.
 """
 
-from backlogworks.backlog.model import STATUSES, Backlog, FormatError, Item, parse_backlog
+from backlogworks.backlog.model import STATUSES, WAITING_PREFIX, Backlog, FormatError, Item, parse_backlog
 
-__all__ = ["STATUSES", "Backlog", "FormatError", "Item", "parse_backlog"]
+__all__ = ["STATUSES", "WAITING_PREFIX", "Backlog", "FormatError", "Item", "parse_backlog"]

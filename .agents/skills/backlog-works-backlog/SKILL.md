@@ -24,10 +24,10 @@ runs it too.
 - Status = the text in cell 4 before the first `<br>`; anything after
   `<br>` is free text (sprint tag, note) that must survive reorders
   byte-for-byte.
-- Status vocabulary is the legend callout at the top of the file:
-  `Proposed`, `Ready`, `Planned`, `In Progress`, `Waiting`,
-  `Ready for Product Owner review`, `Done`, `Cancelled`. Do not invent
-  new values; propose legend changes to the Product Owner instead.
+- Status vocabulary (PO decision 2026-09-26): `Candidate`, `Planned`,
+  `In Progress`, `Review`, `Done`. A blocked item keeps its status and
+  adds `Waiting on: <condition>` after `<br>`; cancelled rows are deleted
+  (git history keeps them). Do not invent new values.
 - Reorder invariants a write path must enforce and an agent must respect
   by hand: same id set, same per-row cell count, row content unchanged
   when only ordering; first-row move is refused unless some row is
@@ -38,16 +38,16 @@ runs it too.
 
 ## Who may change what
 
-- **Order** and **promotion** (`Proposed` -> `Ready`/`Planned`) are the
+- **Order** and **scheduling** (`Candidate` -> `Planned`) are the
   Product Owner's. The team never adds a PBI row or reorders on its own
   initiative; new ideas go into the report as proposals.
 - **The team** moves the item it is working through `In Progress` ->
-  `Ready for Product Owner review` (with the receipt in the Context cell
-  or the handoff) or `Waiting` with the external condition named in the
-  row. Only the Product Owner sets `Done` or `Cancelled`.
+  `Review` (with the receipt in the Context cell or the handoff) or adds
+  `Waiting on: <condition>`. Only the Product Owner sets `Done` or deletes
+  a row.
 - One row `In Progress` at a time. Pick the highest row whose status is
   `Planned` or `In Progress`; if none, report that and stop, do not start
-  a `Proposed` row.
+  a `Candidate` row.
 
 ## Naming rule
 

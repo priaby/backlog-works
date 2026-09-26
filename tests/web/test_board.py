@@ -38,7 +38,7 @@ class BoardTests(unittest.TestCase):
         self.assertEqual(seen[0].repo, source.DEMO_REPO)
 
     def test_html_is_escaped(self):
-        md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| PBI-001. <b>x</b> | j | c | Ready | T |\n"
+        md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| PBI-001. <b>x</b> | j | c | Planned | T |\n"
         page = render_board(parse_backlog(md), repo="r")
         self.assertIn("&lt;b&gt;x&lt;/b&gt;", page)
         self.assertNotIn("<b>x</b>", page)
