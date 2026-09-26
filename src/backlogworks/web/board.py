@@ -12,7 +12,6 @@ from backlogworks.web.board_assets import CSS, SCRIPT
 _CODE_RE = re.compile(r"`([^`]+)`")
 _SPRINT_RE = re.compile(r"\bSprint:\s*([^,;\n]+)")
 STATUS_CLASS = {"Ready": "s-ready", "In Progress": "s-progress", "Done": "s-done"}
-VIEWS = ("Open", "Ready", "Done", "All")
 
 
 def _inline(text: str) -> str:
@@ -21,12 +20,8 @@ def _inline(text: str) -> str:
 
 
 def _card(rank: int, item: Item) -> str:
-    views = ["all"]
-    if item.status != "Done":
-        views.append("open")
-    if item.status in ("Ready", "Done"):
-        views.append(item.status.lower())
-    pill = (f'<span class="pill {STATUS_CLASS.get(item.status, "s-unknown")}">'
+    status_class = STATUS_CLASS.get(item.status, "s-custom")
+    pill = (f'<span class="pill {status_class}">'
             f'{_inline(item.status)}</span>') if item.status else ""
     notes = item.status_note.replace("<br>", "\n")
     sprint = _SPRINT_RE.search(notes)
@@ -36,7 +31,7 @@ def _card(rank: int, item: Item) -> str:
         condition = item.waiting_on.split("<br>", 1)[0]
         waiting = f'<p class="waiting"><span class="pill">Waiting</span> {_inline(condition)}</p>'
     return (
-        f'<div class="card-row" data-views="{" ".join(views)}" '
+        f'<div class="card-row" data-id="{html.escape(item.id)}" '
         f'data-status="{html.escape(item.status)}" data-job="{html.escape(item.core_job)}">'
         f'<span class="rank" aria-label="Priority {rank}">{rank}</span>'
         f'<article class="card" id="{html.escape(item.id)}">'
@@ -55,11 +50,13 @@ def render_board(backlog: Backlog, *, repo: str, subtitle: str = "",
     lives at <board_path>/backlog.md. No JS is needed to read the All view.
     """
     cards = "\n".join(_card(i + 1, item) for i, item in enumerate(backlog.items))
-    buttons = "\n".join(
-        f'<button type="button" data-view="{view.lower()}" '
-        f'aria-pressed="{str(view == "All").lower()}" disabled>{view}</button>'
-        for view in VIEWS
+    all_button = '<button type="button" data-view="all" aria-pressed="true" disabled>All</button>'
+    status_buttons = "\n".join(
+        f'<button type="button" data-view="status" data-filter="{html.escape(s)}" '
+        f'aria-pressed="false" disabled>{_inline(s)}</button>'
+        for s in backlog.statuses
     )
+    buttons = "\n".join((all_button, status_buttons))
     problems = ""
     if backlog.problems:
         notes = "".join(f"<li>{_inline(p)}</li>" for p in backlog.problems)
@@ -88,7 +85,7 @@ def render_board(backlog: Backlog, *, repo: str, subtitle: str = "",
 </header>
 {problems}
 <div class="view-switch" role="group" aria-label="Show backlog view">{buttons}</div>
-<noscript><p>All entries are shown. Enable JavaScript to switch views.</p></noscript>
+<noscript><p>All entries are shown in file order. Enable JavaScript to switch views and preview reordering.</p></noscript>
 <div id="cards">{cards}</div>
 <p id="empty-state" class="empty" hidden>Nothing in this view.</p>
 </section>

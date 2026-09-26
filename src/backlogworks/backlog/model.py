@@ -27,6 +27,9 @@ STATUSES = (
     "In Progress",
     "Done",
 )
+# View order for the board's status selector (PO decision 2026-09-26): known
+# statuses first, then any custom status in first-seen document order.
+KNOWN_STATUSES = ("In Progress", "Ready", "Done")
 WAITING_PREFIX = "Waiting on:"
 
 
@@ -73,6 +76,16 @@ class Backlog:
     @property
     def in_progress(self) -> tuple[Item, ...]:
         return tuple(i for i in self.items if i.status == "In Progress")
+
+    @property
+    def statuses(self) -> tuple[str, ...]:
+        """KNOWN_STATUSES always present, then each non-empty custom status
+        (exact string match, so `done` counts as custom) in document order."""
+        out = list(KNOWN_STATUSES)
+        for item in self.items:
+            if item.status and item.status not in out:
+                out.append(item.status)
+        return tuple(out)
 
 
 def _cells(row: str) -> list[str]:
@@ -179,8 +192,6 @@ def parse_backlog(markdown: str) -> Backlog:
         status_cell = cells[3]
         status, _, note = status_cell.partition("<br>")
         item = Item(item_id, title, cells[1], cells[2], status.strip(), note.strip(), cells[4], i + 1)
-        if not item.status_known:
-            problems.append(f"line {i + 1}: {item_id} status {item.status!r} not in legend")
         items.append(item)
     if any(ROW_ID_RE.match(l) for l in lines[end:]):
         problems.append("a second item block exists after the active table")

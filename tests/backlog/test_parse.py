@@ -1,12 +1,10 @@
 # Copyright (c) 2026 Pavel Riaby. All rights reserved. See LICENSE.
-import re
 import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
 from backlogworks.backlog import FormatError, new_item_id, parse_backlog
 
-DEMO = Path(__file__).resolve().parents[2] / "src/backlogworks/demo/backlog.md"
 REPO_BACKLOG = Path(__file__).resolve().parents[2] / "docs/product/backlog.md"
 
 MINIMAL = """---
@@ -52,7 +50,8 @@ class ParseTests(unittest.TestCase):
         b = parse_backlog(broken)
         self.assertEqual(len(b.items), 2)
         self.assertTrue(any("duplicate id K417" in p for p in b.problems))
-        self.assertTrue(any("not in legend" in p for p in b.problems))
+        self.assertFalse(any("not in legend" in p for p in b.problems))
+        self.assertEqual(b.items[1].status, "Shipped")
 
     def test_waiting_note(self):
         md = MINIMAL.replace("In Progress<br>Sprint: S1", "Ready<br>Waiting on: legal sign-off")
@@ -71,12 +70,13 @@ class ParseTests(unittest.TestCase):
         two = MINIMAL.replace("| Done |", "| In Progress |")
         self.assertEqual(parse_backlog(two).problems, ())
 
-    def test_demo_file_is_clean(self):
-        b = parse_backlog(DEMO.read_text(encoding="utf-8"))
-        self.assertEqual(b.problems, ())
-        self.assertEqual(len(b.items), 12)
-        self.assertTrue(all(re.fullmatch(r"[ABCDEFGHJKLMNPRSTUVWXYZ][1-9][0-9]{2}", i)
-                            for i in b.ids))
+    def test_statuses_known_order_then_custom_first_seen(self):
+        rows = ["Done", "Blocked", "", "Review", "Blocked", "Ready"]
+        md = "\n".join(f"| K{100+i}. Item {i} | job | context | {status} | Team |"
+                       for i, status in enumerate(rows, 1))
+        b = parse_backlog(md)
+        self.assertEqual(b.statuses, ("In Progress", "Ready", "Done", "Blocked", "Review"))
+        self.assertIn("Ready", parse_backlog(MINIMAL).statuses)
 
     def test_repo_file_is_clean(self):
         b = parse_backlog(REPO_BACKLOG.read_text(encoding="utf-8"))

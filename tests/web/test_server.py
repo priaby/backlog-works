@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Pavel Riaby. All rights reserved. See LICENSE.
 """HTTP access logging tests without sockets."""
 
+import html
 import io
 import json
 import unittest
@@ -8,19 +9,20 @@ from unittest.mock import Mock, patch
 
 from backlogworks import __main__ as entry
 from backlogworks.config import Config
-from backlogworks.demo import load_demo
 from backlogworks.events import EventBus
 from backlogworks.landing import pitch_html
+from backlogworks.local import LOCAL_REPO, load_backlog
 from backlogworks.web.server import App, Handler, build_server
 
 
 class RouteTests(unittest.TestCase):
-    def test_source_route_returns_exact_demo_markdown(self):
-        markdown, _ = load_demo()
+    def test_source_route_returns_exact_backlog_bytes(self):
+        markdown, _ = load_backlog(Config())
         response = App(Config(), EventBus()).dispatch('/backlog.md?cache=ignored')
         self.assertEqual(response, (200, markdown.encode('utf-8'), 'text/markdown; charset=utf-8'))
 
     def test_root_contains_pitch_and_board(self):
+        _, backlog = load_backlog(Config())
         status, body, content_type = App(Config(), EventBus()).dispatch('/')
         self.assertEqual((status, content_type), (200, 'text/html; charset=utf-8'))
         page = body.decode('utf-8')
@@ -28,11 +30,33 @@ class RouteTests(unittest.TestCase):
         self.assertIn('id="board"', page)
         self.assertLess(page.index(pitch_html()), page.index('id="board"'))
         self.assertIn('href="/backlog.md"', page)
-        self.assertIn('id="U611"', page)
+        self.assertIn(f'id="{backlog.ids[0]}"', page)
+        self.assertIn('class="eyebrow">' + LOCAL_REPO, page)
+        self.assertIn(html.escape("This product's own backlog. Order changes are previews until sign-in ships."),
+                     page)
         self.assertNotIn('PBI-', page)
-        self.assertEqual(page.count(' data-view="'), 4)
+        self.assertEqual(page.count(' data-view="'), 1 + len(backlog.statuses))
         for removed in ('view-count', 'job-filter', 'bug-row', '<details'):
             self.assertNotIn(removed, page)
+
+    def test_demo_route_returns_404(self):
+        status, _, _ = App(Config(), EventBus()).dispatch("/demo")
+        self.assertEqual(status, 404)
+
+    def test_missing_backlog_file_returns_503(self):
+        config = Config(backlog_file="/no/such/backlog.md")
+        status, body, content_type = App(config, EventBus()).dispatch("/")
+        self.assertEqual(status, 503)
+        self.assertEqual(body, b"backlog unavailable")
+        self.assertEqual(content_type, "text/plain; charset=utf-8")
+        status, _, _ = App(config, EventBus()).dispatch("/backlog.md")
+        self.assertEqual(status, 503)
+
+    def test_pitch_html_has_new_bullet_and_no_fictitious(self):
+        page = pitch_html()
+        self.assertIn("Below is this product's own backlog, rendered by the same engine that will serve yours.",
+                     page)
+        self.assertNotIn('fictitious', page)
 
     def test_response_headers_and_head_without_sockets(self):
         handler = Handler.__new__(Handler)
@@ -114,7 +138,6 @@ class StartupTests(unittest.TestCase):
         result.serve_forever.assert_not_called()
         self.assertEqual(seen, [])
 
-    def test_demo_route_identifies_fictitious_read_only_product(self):
-        status, body, _ = App(Config(), EventBus()).dispatch("/")[:3]
-        self.assertEqual(status, 200)
-        self.assertIn(b"Fictitious translator product, read-only", body)
+
+if __name__ == "__main__":
+    unittest.main()

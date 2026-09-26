@@ -20,7 +20,7 @@ h1 { font-size:clamp(26px,4vw,36px); line-height:1.15; letter-spacing:-.025em; m
 .source-line { display:flex; flex-wrap:wrap; gap:6px 20px; font-size:13px; color:var(--muted); }
 .subtitle { color:var(--muted); font-size:12px; margin:10px 0 0; }
 .subtitle:empty,.description:empty { display:none; }
-.view-switch { display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+.view-switch { display:grid; grid-template-columns:repeat(auto-fit,minmax(88px,1fr));
   border:1px solid var(--line); border-radius:9px; padding:3px; background:#e9ecf0; gap:2px; }
 .view-switch button { border:0; border-radius:6px; background:transparent; color:var(--muted);
   min-height:44px; padding:7px 2px; font-size:13px; font-weight:600; }
@@ -41,7 +41,7 @@ h1 { font-size:clamp(26px,4vw,36px); line-height:1.15; letter-spacing:-.025em; m
 .s-ready { background:#eaf0fb; color:var(--accent); }
 .s-progress { background:#e7f3eb; color:#22663b; }
 .s-done { background:#eef0f2; color:var(--muted); }
-.s-unknown { border:1px dashed var(--muted); }
+.s-custom { border:1px dashed var(--muted); }
 .sprint { font-variant-numeric:tabular-nums; }
 .waiting { margin:0 0 10px; font-size:13px; color:var(--muted); }
 .context { color:var(--muted); font-size:14px; margin:0; }
@@ -54,7 +54,7 @@ code { background:#eef0f2; border-radius:3px; padding:0 3px; font-size:.92em; ov
 footer { max-width:960px; margin:auto; padding:0 16px 28px; font-size:12px; color:var(--muted); }
 @media (min-width:640px) {
   main { padding:36px; }
-  .view-switch { width:fit-content; min-width:500px; }
+  .view-switch { max-width:640px; }
   .card-row { grid-template-columns:36px minmax(0,1fr); gap:14px; }
   .rank { width:36px; height:36px; }
 }
@@ -67,25 +67,27 @@ SCRIPT = """
 (() => {
   'use strict';
   const board = document.getElementById('board');
-  const buttons = [...board.querySelectorAll('[data-view]')];
-  const rows = [...board.querySelectorAll('[data-views]')];
-  const empty = board.querySelector('#empty-state');
-  let view = 'open';
+  const list = document.getElementById('cards');
+  const viewButtons = [...board.querySelectorAll('.view-switch [data-view]')];
+  const empty = document.getElementById('empty-state');
+  const rows = () => [...list.children];
+  let view = viewButtons[0];
+  const matches = r => view.dataset.view === 'all' || r.dataset.status === view.dataset.filter;
 
-  function render() {
+  function applyView() {
     let visible = 0;
-    rows.forEach(row => {
-      row.hidden = !row.dataset.views.split(' ').includes(view);
-      if (!row.hidden) visible++;
+    rows().forEach(r => {
+      r.hidden = !matches(r);
+      if (!r.hidden) visible++;
     });
     empty.hidden = visible !== 0;
-    buttons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+    viewButtons.forEach(b => b.setAttribute('aria-pressed', String(b === view)));
   }
 
-  buttons.forEach(button => {
+  viewButtons.forEach(button => {
     button.disabled = false;
-    button.addEventListener('click', () => { view = button.dataset.view; render(); });
+    button.addEventListener('click', () => { view = button; applyView(); });
   });
-  render();
+  applyView();
 })();
 """
