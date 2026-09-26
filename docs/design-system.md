@@ -21,6 +21,10 @@ for names and values; `src/backlogworks/web/board_assets.py` (or
 `board_css.py`) for the shipped CSS. Parity is test-enforced (every
 `--bw-*` token named here must exist in the CSS).
 
+Version 2, 2026-09-26 (Product Owner decisions): Commissioner typeface,
+two-tier status views, fixed segmented control, simplified card, title and
+description limits.
+
 ## 1. Principles
 
 1. Phone first. Design at 390x844, then widen. Nothing needs a hover or
@@ -37,8 +41,10 @@ for names and values; `src/backlogworks/web/board_assets.py` (or
    removes all transitions and animations.
 7. Light first, dark ready: colours exist only as tokens, so a later dark
    block overrides tokens and nothing else. No dark block ships yet.
-8. No external assets: system font stack, no web fonts, no images, icons
-   as inline SVG or a text glyph. The strict CSP (inline style/script only)
+8. No third-party origins; the typeface is self-hosted: Commissioner (SIL
+   OFL 1.1, files in `src/backlogworks/web/fonts/`) served from
+   `/assets/fonts/` under `font-src 'self'`. No images; icons as inline SVG
+   or a text glyph. The strict CSP (inline style/script, same-origin fonts)
    stays.
 9. Works without JS: every primitive renders a usable resting state from
    server HTML; JS only adds state (pressed, moved, hidden).
@@ -103,8 +109,8 @@ only inside it.
   /* Moved-flash highlight */
   --bw-flash: oklch(96% 0.05 100);  /* #f9f3cd */
 
-  /* Type: system stack only */
-  --bw-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Type: Commissioner, self-hosted (@font-face above this block) */
+  --bw-font: Commissioner, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --bw-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --bw-text-xs: 13px;   /* meta, pills, chips, segmented, footer */
   --bw-text-sm: 15px;   /* body, context, buttons */
@@ -113,7 +119,8 @@ only inside it.
   --bw-text-xl: 28px;   /* masthead h1 */
   --bw-leading: 1.5;
   --bw-leading-tight: 1.25;
-  --bw-weight-strong: 650;
+  --bw-weight-strong: 600;  /* inside the Regular file's 400-600 range */
+  --bw-weight-bold: 700;    /* headings, pressed segment (BoldFlair file) */
 
   /* Spacing: 4px base */
   --bw-space-1: 4px;  --bw-space-2: 8px;  --bw-space-3: 12px;
@@ -161,6 +168,14 @@ only inside it.
   --bw-z-toast: 30;    /* reserved */
 }
 ```
+
+Typeface. Two `@font-face` rules precede the token block: Commissioner
+400-600 from `/assets/fonts/CommissionerRegular.woff2` and 700-900 from
+`/assets/fonts/CommissionerBoldFlair.woff2`, `font-display: swap`. The
+server sends both with `Cache-Control: public, max-age=31536000,
+immutable`, so a changed font ships under a new file name. Weight strong
+(600) is the Regular file's top; bold (700) is for headings and the
+pressed segment.
 
 Tones. A tone class sets three local variables; `bw-pill` and `bw-card`
 read only these, never a ramp directly:
@@ -337,7 +352,9 @@ padding with safe-area insets), `a`, `button` font inherit, `code`
    variants beat new components.
 2. No one-off colours: outside the token block the CSS has no hex, `rgb(`,
    `hsl(` or `oklch(` literal; only `var(--bw-*)` and `color-mix()` over
-   tokens. A test enforces this.
+   tokens. A test enforces this. `url(` appears only in the two
+   `@font-face` rules and only as `url(/assets/fonts/`; a test enforces
+   this.
 3. No inline `style` attributes and no `<style>` other than the one
    board stylesheet. Colour is never set from Python except by choosing a
    `bw-tone-*` class.

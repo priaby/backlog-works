@@ -71,7 +71,7 @@ what is deployed is evidenced separately in `docs/ops/`.
 | `local` | this product's own backlog file read from disk (`Config.backlog_file`, default `docs/product/backlog.md`, copied into the image); a `BacklogSource`-shaped read, no write | `backlog.loaded` (`sha` = content hash) | | served on `/` as `priaby/backlog-works` | superseded by the `github` adapter for this repo with J709 |
 | `landing` | pitch chrome only; `/` is this product's own backlog rendered by the one board engine (`web.board`), never a second implementation | | | pitch above the board | G761 (Brand and landing page) |
 | `docs` | product documentation at `/docs/*` from markdown packaged in the image | | | empty | first pages: file format and status legend (with J709), API reference (with F196) |
-| `web` | routes, the single board engine (`board.py`), JSON endpoints, SSE, headers, CSRF check; the only place blocks meet | `backlog.reordered`, `backlog.item_status_changed` | `backlog.*` (SSE fan-out) | `/` (pitch + this repo's board), `/backlog.md`, `/healthz` | tenant boards, API, sign-in |
+| `web` | routes, the single board engine (`board.py`), JSON endpoints, SSE, headers, CSRF check; the only place blocks meet | `backlog.reordered`, `backlog.item_status_changed` | `backlog.*` (SSE fan-out) | `/` (pitch + this repo's board), `/backlog.md`, `/assets/fonts/*` (self-hosted typeface), `/healthz` | tenant boards, API, sign-in |
 | `__main__` | composition root: build bus, subscribe consumers, construct server, publish `service.started`, serve | `service.started` | | | |
 
 ### Dependency rule (enforced)
@@ -350,6 +350,7 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 | 2026-09-26 | Timeline kept forever, emails hashed | PO default accepted | a retention request |
 | 2026-09-26 | First tenant is this repository (dogfood) | PO default accepted | partner onboarding |
 | 2026-09-26 | Unknown GitHub outcome shown as "verifying", resolved on next request | PO default accepted | never |
+| 2026-09-26 | Commissioner is the product typeface, self-hosted at `/assets/fonts/` (two woff2 files, immutable cache), CSP `font-src 'self'` | PO decision; no third-party origin | the licence or the font files change |
 
 ## 7. Known debt
 

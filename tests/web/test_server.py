@@ -12,7 +12,7 @@ from backlogworks.config import Config
 from backlogworks.events import EventBus
 from backlogworks.landing import pitch_html
 from backlogworks.local import LOCAL_REPO, load_backlog
-from backlogworks.web.server import App, Handler, build_server
+from backlogworks.web.server import FONT_DIR, FONT_FILES, App, Handler, build_server
 
 
 class RouteTests(unittest.TestCase):
@@ -67,11 +67,52 @@ class RouteTests(unittest.TestCase):
         handler._send(200, b'body', 'text/html; charset=utf-8', write_body=False)
         headers = dict(call.args for call in handler.send_header.call_args_list)
         self.assertEqual(headers['Content-Security-Policy'],
-                         "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self'")
+                         "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; "
+                         "img-src 'self'; font-src 'self'")
         self.assertEqual(headers['X-Robots-Tag'], 'noindex')
         self.assertEqual(headers['Cache-Control'], 'no-store')
         self.assertEqual(headers['X-Content-Type-Options'], 'nosniff')
         self.assertEqual(headers['Content-Length'], '4')
+        self.assertEqual(handler.wfile.getvalue(), b'')
+
+
+class FontRouteTests(unittest.TestCase):
+    def test_font_routes_serve_exact_bytes_with_immutable_cache(self):
+        for name in FONT_FILES:
+            response = App(Config(), EventBus()).dispatch("/assets/fonts/" + name + "?v=1")
+            self.assertEqual(response, (200, (FONT_DIR / name).read_bytes(), "font/woff2",
+                                        {"Cache-Control": "public, max-age=31536000, immutable"}))
+
+    def test_font_route_rejects_every_other_name(self):
+        for path in ("/assets/fonts/",
+                     "/assets/fonts/OFL.txt",
+                     "/assets/fonts/README.md",
+                     "/assets/fonts/../server.py",
+                     "/assets/fonts/%2e%2e/server.py",
+                     "/assets/fonts/commissionerregular.woff2",
+                     "/assets/fonts/CommissionerRegular.woff2/x",
+                     "/assets/fonts/Other.woff2"):
+            with self.subTest(path=path):
+                status, _, _ = App(Config(), EventBus()).dispatch(path)
+                self.assertEqual(status, 404)
+
+    def test_font_head_sends_headers_without_body(self):
+        handler = Handler.__new__(Handler)
+        handler.send_response = Mock()
+        handler.send_header = Mock()
+        handler.end_headers = Mock()
+        handler.wfile = io.BytesIO()
+        handler.app = App(Config(), EventBus())
+        handler.path = "/assets/fonts/CommissionerRegular.woff2"
+        handler.do_HEAD()
+        headers = dict(call.args for call in handler.send_header.call_args_list)
+        font_path = FONT_DIR / "CommissionerRegular.woff2"
+        self.assertEqual(headers['Content-Type'], 'font/woff2')
+        self.assertEqual(headers['Content-Length'], str(len(font_path.read_bytes())))
+        self.assertEqual(headers['Cache-Control'], 'public, max-age=31536000, immutable')
+        self.assertIn("font-src 'self'", headers['Content-Security-Policy'])
+        cache_control_calls = [c for c in handler.send_header.call_args_list if c.args[0] == 'Cache-Control']
+        self.assertEqual(len(cache_control_calls), 1)
         self.assertEqual(handler.wfile.getvalue(), b'')
 
 

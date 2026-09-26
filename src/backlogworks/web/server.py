@@ -8,6 +8,7 @@ import socketserver
 import sys
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 from backlogworks.config import Config
 from backlogworks.events import EventBus
@@ -20,10 +21,15 @@ Route = Callable[[], Response]
 
 _COMMON_HEADERS = {"X-Robots-Tag": "noindex", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
 _COMMON_HEADERS["Content-Security-Policy"] = (
-    "default-src 'none'; style-src 'unsafe-inline'; "
-    "script-src 'unsafe-inline'; img-src 'self'"
+    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; "
+    "img-src 'self'; font-src 'self'"
 )
 LOCAL_SUBTITLE = "This product's own backlog. Order changes are previews until sign-in ships."
+
+FONT_DIR = Path(__file__).with_name("fonts")
+FONT_PREFIX = "/assets/fonts/"
+FONT_FILES = frozenset({"CommissionerRegular.woff2", "CommissionerBoldFlair.woff2"})
+FONT_CACHE_CONTROL = "public, max-age=31536000, immutable"
 
 
 class App:
@@ -57,8 +63,20 @@ class App:
             return 503, b"backlog unavailable", "text/plain; charset=utf-8"
         return 200, markdown.encode("utf-8"), "text/markdown; charset=utf-8"
 
+    def font(self, name: str) -> Response:
+        if name not in FONT_FILES:
+            return 404, b"not found", "text/plain; charset=utf-8"
+        try:
+            body = (FONT_DIR / name).read_bytes()
+        except OSError:
+            return 404, b"not found", "text/plain; charset=utf-8"
+        return 200, body, "font/woff2", {"Cache-Control": FONT_CACHE_CONTROL}
+
     def dispatch(self, path: str) -> Response:
-        route = self.routes.get(path.split("?", 1)[0])
+        path = path.split("?", 1)[0]
+        if path.startswith(FONT_PREFIX):
+            return self.font(path[len(FONT_PREFIX):])
+        route = self.routes.get(path)
         if route is None:
             return 404, b"not found", "text/plain; charset=utf-8"
         return route()

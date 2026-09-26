@@ -34,10 +34,11 @@ head=$(curl -sI -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$p
 nf=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$port/nope" || echo 000)
 gone=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$port/demo" || echo 000)
 markdown=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$port/backlog.md" || echo 000)
-if [[ $ok == 1 && $root == 200 && $head == 200 && $nf == 404 && $gone == 404 && $markdown == 200 ]]; then
-  echo "ok smoke: /healthz=ok GET/=200 HEAD/healthz=200 /nope=404 /demo=404 /backlog.md=200"
+font=$(curl -s -o /dev/null -w '%{http_code} %{content_type}' --max-time 2 "http://127.0.0.1:$port/assets/fonts/CommissionerRegular.woff2" || echo 000)
+if [[ $ok == 1 && $root == 200 && $head == 200 && $nf == 404 && $gone == 404 && $markdown == 200 && $font == "200 font/woff2" ]]; then
+  echo "ok smoke: /healthz=ok GET/=200 HEAD/healthz=200 /nope=404 /demo=404 /backlog.md=200 /assets/fonts/CommissionerRegular.woff2=200"
 else
-  echo "FAIL smoke: healthz_ok=$ok root=$root head=$head notfound=$nf gone=$gone markdown=$markdown"; fail=1
+  echo "FAIL smoke: healthz_ok=$ok root=$root head=$head notfound=$nf gone=$gone markdown=$markdown font=$font"; fail=1
 fi
 kill "$pid" 2>/dev/null || true; trap - EXIT
 

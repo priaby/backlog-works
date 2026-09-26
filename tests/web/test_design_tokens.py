@@ -86,6 +86,31 @@ class DesignTokenTests(unittest.TestCase):
         self.assertIn("prefers-reduced-motion", CSS)
         self.assertIn("any-hover", CSS)
 
+    def test_font_face_precedes_tokens_and_commissioner_leads_the_stack(self):
+        tokens_start = CSS.index("/* tokens:start */")
+        faces = list(re.finditer(r"@font-face\s*\{[^}]*\}", CSS))
+        self.assertEqual(len(faces), 2)
+        for face in faces:
+            self.assertLess(face.end(), tokens_start)
+            self.assertIn("font-display: swap", face.group())
+        weights = sorted(re.findall(r"font-weight:\s*(\d+ \d+)", " ".join(f.group() for f in faces)))
+        self.assertEqual(weights, ["400 600", "700 900"])
+        self.assertIn("--bw-font: Commissioner, system-ui,", CSS)
+        self.assertIn("--bw-weight-strong: 600;", CSS)
+        self.assertIn("--bw-weight-bold: 700;", CSS)
+
+    def test_url_only_inside_font_face_and_self_hosted(self):
+        from backlogworks.web import server
+        faces = list(re.finditer(r"@font-face\s*\{[^}]*\}", CSS))
+        names = set()
+        for m in re.finditer(r"url\(([^)]*)\)", CSS):
+            self.assertTrue(any(f.start() <= m.start() < f.end() for f in faces),
+                            f"url( outside @font-face at {m.start()}")
+            self.assertTrue(m.group(1).startswith("/assets/fonts/"), m.group(1))
+        for m in re.finditer(r"url\(/assets/fonts/([^)]+)\)", CSS):
+            names.add(m.group(1))
+        self.assertEqual(names, set(server.FONT_FILES))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,9 +3,18 @@
 primitive (section 3), in doc order. Split out of board_assets.py once the
 sheet passed 400 lines (docs/design-system.md rule 4.6). No colour literal
 appears outside the tokens:start/tokens:end block; every other rule reads a
---bw-* variable or color-mix() over one."""
+--bw-* variable or color-mix() over one. `url(` appears only inside the two
+@font-face rules at the top, and only as `url(/assets/fonts/`."""
 
 CSS = """
+@font-face {
+  font-family: Commissioner; font-style: normal; font-weight: 400 600; font-display: swap;
+  src: url(/assets/fonts/CommissionerRegular.woff2) format("woff2");
+}
+@font-face {
+  font-family: Commissioner; font-style: normal; font-weight: 700 900; font-display: swap;
+  src: url(/assets/fonts/CommissionerBoldFlair.woff2) format("woff2");
+}
 /* tokens:start */
 :root {
   color-scheme: light;
@@ -58,8 +67,8 @@ CSS = """
   /* Moved-flash highlight */
   --bw-flash: oklch(96% 0.05 100);  /* #f9f3cd */
 
-  /* Type: system stack only */
-  --bw-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Type: Commissioner, self-hosted (@font-face above this block) */
+  --bw-font: Commissioner, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --bw-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --bw-text-xs: 13px;   /* meta, pills, chips, segmented, footer */
   --bw-text-sm: 15px;   /* body, context, buttons */
@@ -68,7 +77,8 @@ CSS = """
   --bw-text-xl: 28px;   /* masthead h1 */
   --bw-leading: 1.5;
   --bw-leading-tight: 1.25;
-  --bw-weight-strong: 650;
+  --bw-weight-strong: 600;  /* inside the Regular file's 400-600 range */
+  --bw-weight-bold: 700;    /* headings, pressed segment (BoldFlair file) */
 
   /* Spacing: 4px base */
   --bw-space-1: 4px;  --bw-space-2: 8px;  --bw-space-3: 12px;
@@ -267,7 +277,7 @@ footer {
   from { background: var(--bw-flash); box-shadow: 0 0 0 2px var(--bw-accent-6); }
   to { background: var(--bw-surface); box-shadow: inset 4px 0 0 var(--bw-tone-5), var(--bw-shadow-1); }
 }
-.bw-card__title { margin: 0 0 var(--bw-space-2); font-size: var(--bw-text-md); font-weight: var(--bw-weight-strong); line-height: var(--bw-leading-tight); }
+.bw-card__title { margin: 0 0 var(--bw-space-2); font-size: var(--bw-text-md); font-weight: var(--bw-weight-bold); line-height: var(--bw-leading-tight); }
 .bw-card__id { color: var(--bw-accent-7); font-variant-numeric: tabular-nums; }
 .bw-card__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: var(--bw-space-2); }
 .bw-card__waiting { margin: 0 0 var(--bw-space-2); font-size: var(--bw-text-xs); color: var(--bw-ink-2); }
@@ -305,7 +315,7 @@ footer {
   margin: 0 0 var(--bw-space-2); font-size: var(--bw-text-xs); font-weight: var(--bw-weight-strong);
   letter-spacing: .08em; color: var(--bw-accent-7);
 }
-.bw-masthead h1 { margin: 0 0 var(--bw-space-3); font-size: var(--bw-text-xl); line-height: var(--bw-leading-tight); letter-spacing: -.02em; color: var(--bw-ink); }
+.bw-masthead h1 { margin: 0 0 var(--bw-space-3); font-size: var(--bw-text-xl); font-weight: var(--bw-weight-bold); line-height: var(--bw-leading-tight); letter-spacing: -.02em; color: var(--bw-ink); }
 .bw-masthead__description { margin: 0 0 var(--bw-space-3); font-size: var(--bw-text-sm); color: var(--bw-ink-2); }
 .bw-masthead__description:empty { display: none; }
 .bw-masthead__source { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: var(--bw-text-xs); color: var(--bw-ink-3); }
@@ -319,7 +329,7 @@ footer {
 
 /* bw-prose */
 .bw-prose { padding-bottom: var(--bw-space-6); border-bottom: 1px solid var(--bw-line); font-size: var(--bw-text-sm); color: var(--bw-ink-2); }
-.bw-prose h2 { font-size: var(--bw-text-lg); color: var(--bw-ink); margin: 0 0 var(--bw-space-2); }
+.bw-prose h2 { font-size: var(--bw-text-lg); font-weight: var(--bw-weight-bold); color: var(--bw-ink); margin: 0 0 var(--bw-space-2); }
 .bw-prose p { margin: var(--bw-space-2) 0; }
 .bw-prose ul { margin: var(--bw-space-2) 0; padding-left: 20px; }
 
