@@ -1,5 +1,6 @@
 # Copyright (c) 2026 Pavel Riaby. All rights reserved. See LICENSE.
 import html
+import re
 import unittest
 from dataclasses import replace
 from html.parser import HTMLParser
@@ -65,6 +66,51 @@ class BoardTests(unittest.TestCase):
         self.assertIn('Blocked', [b.get('data-filter') for b in buttons])
         self.assertNotIn('>Open<', page)
         self.assertNotIn('data-view="open"', page)
+
+    def test_card_controls_disabled_with_correct_edges(self):
+        md = "\n".join(f"| K{100+i}. Item {i} | job | context | Ready | Team |" for i in range(1, 4))
+        page = render_board(parse_backlog(md), repo="r")
+        rows = [a for t, a in Elements(page).elements if t == 'div' and 'data-id' in a]
+        self.assertEqual(len(rows), 3)
+        move_buttons = [a for t, a in Elements(page).elements if t == 'button' and 'data-move' in a]
+        self.assertEqual(len(move_buttons), 9)
+        self.assertTrue(all('disabled' in b for b in move_buttons))
+        labels = {'up': 'Move up', 'down': 'Move down', 'top': 'Move to top'}
+        for b in move_buttons:
+            self.assertEqual(b['aria-label'], labels[b['data-move']])
+        first_three = move_buttons[0:3]
+        middle_three = move_buttons[3:6]
+        last_three = move_buttons[6:9]
+        self.assertIn('data-edge', first_three[0])  # up
+        self.assertNotIn('data-edge', first_three[1])  # down
+        self.assertIn('data-edge', first_three[2])  # top
+        self.assertTrue(all('data-edge' not in b for b in middle_three))
+        self.assertNotIn('data-edge', last_three[0])  # up
+        self.assertIn('data-edge', last_three[1])  # down
+        self.assertNotIn('data-edge', last_three[2])  # top
+
+    def test_single_row_backlog_gets_data_edge_on_all_three(self):
+        md = "| K417. Item | job | context | Ready | Team |"
+        page = render_board(parse_backlog(md), repo="r")
+        move_buttons = [a for t, a in Elements(page).elements if t == 'button' and 'data-move' in a]
+        self.assertEqual(len(move_buttons), 3)
+        self.assertTrue(all('data-edge' in b for b in move_buttons))
+
+    def test_order_status_and_reset_and_empty_state_present(self):
+        _, backlog = load_backlog(Config())
+        page = render_board(backlog, repo="r")
+        self.assertIn('<div id="order-status" class="order-status" hidden>', page)
+        self.assertIn('Order changed in this browser only. Saving arrives with sign-in.', page)
+        self.assertIn('<button type="button" id="order-reset">Reset</button>', page)
+        self.assertIn('<p id="empty-state" class="empty" hidden>Nothing in this view.</p>', page)
+
+    def test_persist_order_hook_present_single_script_no_inline_handlers(self):
+        _, backlog = load_backlog(Config())
+        page = render_board(backlog, repo="r")
+        self.assertIn('function persistOrder(ids)', page)
+        self.assertIsNone(re.search(r'\son[a-z]+=', page))
+        elements = Elements(page).elements
+        self.assertEqual(sum(tag == 'script' for tag, _ in elements), 1)
 
     def test_noscript_copy(self):
         _, backlog = load_backlog(Config())
