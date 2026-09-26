@@ -268,7 +268,8 @@ Status label. `<span class="bw-pill bw-tone-*">`.
   not contain: icons, buttons, notes.
 
 ### bw-chip
-Metadata from the status note, one chip per `<br>` part. `<span
+Metadata from the status note, one chip per non-empty `<br>` part; a
+prefixed part with an empty value (`Sprint:`) renders nothing. `<span
 class="bw-chip">`. Radius pill, padding 2px 10px, `--bw-text-xs`, bg
 sunken, text ink-2 (plain chips: `Due: X` shows "Due X"; any other part
 shows its text). `bw-chip--sprint`: `Sprint: X` shows "X", tabular

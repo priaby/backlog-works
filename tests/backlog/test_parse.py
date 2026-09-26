@@ -94,6 +94,16 @@ class ParseTests(unittest.TestCase):
         self.assertEqual([i.id for i in b.open_items], [i.id for i in b.items if i.status != "Done"])
         self.assertEqual([i.status for i in b.in_progress], ["In Progress"])
 
+    def test_status_trimmed_and_done_is_case_sensitive(self):
+        md = MINIMAL.replace("In Progress<br>Sprint: S1", "Done  ").replace("| Done |", "| done |")
+        b = parse_backlog(md)
+        self.assertEqual(b.items[0].status, "Done")
+        self.assertEqual(b.items[0].state, "done")
+        self.assertEqual(b.items[0].stage, "")
+        self.assertEqual(b.items[1].status, "done")
+        self.assertEqual(b.items[1].state, "open")
+        self.assertEqual(b.items[1].stage, "done")
+
     def test_repo_file_is_clean(self):
         b = parse_backlog(REPO_BACKLOG.read_text(encoding="utf-8"))
         self.assertEqual(b.problems, ())

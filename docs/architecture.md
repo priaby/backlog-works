@@ -302,7 +302,9 @@ No backlog content at rest. A restart loses only the in-memory read cache.
    rule). Legend-declared vocabularies are R685 (Configurable statuses per
    backlog). Title at most 80 characters and Context (the card
    description) at most 280 (`TITLE_MAX`, `DESCRIPTION_MAX`, measured with
-   `len()`); longer cells are parse problems, never truncated.
+   `len()`); longer cells are parse problems, never truncated. Status text
+   is trimmed of cell padding; `Done` is matched case-sensitively after
+   trimming (`done` is a custom stage).
 10. **Reader and writer are different contracts.** `parse_backlog` is a
     tolerant reader for display (records problems, never raises on a
     row). The write path (J709) works on raw row byte slices with exact
