@@ -28,6 +28,11 @@ runs it too.
 - Status = the text in cell 4 before the first `<br>`; anything after
   `<br>` is free text (sprint tag, note) that must survive reorders
   byte-for-byte.
+- Two tiers (PO decision 2026-09-26): `Done` closes an item; every other
+  value is an open item's optional stage. The board's view control is
+  fixed: Open, In progress, Done, All.
+- Title at most 80 characters, Context (the card description) at most
+  280; write concisely, the gate fails on longer cells.
 - Status vocabulary (PO decision 2026-09-26, Scrum Guide grounded): empty
   cell = ordinary item; `Ready` (Definition of Ready met, selectable);
   `In Progress` (in the Sprint Backlog); `Done` (Definition of Done met,

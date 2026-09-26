@@ -174,7 +174,11 @@ active section, columns `Item (PBI)`, `Core Job`, `Context`, `Status`,
 from `ABCDEFGHJKLMNPRSTUVWXYZ` plus three digits `100`-`999` (`K417`),
 random, unique within the file, assigned at creation, never reused;
 `scripts/new_id.py` mints one. No `PBI-` prefix, no type field (bugs
-are not a separate section; a type field is a later product decision). Statuses (PO decision
+are not a separate section; a type field is a later product decision).
+Two-tier status (PO decision 2026-09-26): an item is open or done
+(`Done` in the cell closes it); an open item may carry a stage (`Ready`,
+`In Progress`, or a custom word). Title at most 80 characters, Context
+at most 280; the parser flags longer cells and the gate fails on them. Statuses (PO decision
 2026-09-26, Scrum Guide grounded): empty = ordinary item; `Ready` = meets
 the Definition of Ready, selectable in Sprint Planning; `In Progress` =
 in the Sprint Backlog; `Done` = meets the Definition of Done, accepted.
