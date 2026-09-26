@@ -24,10 +24,12 @@ runs it too.
 - Status = the text in cell 4 before the first `<br>`; anything after
   `<br>` is free text (sprint tag, note) that must survive reorders
   byte-for-byte.
-- Status vocabulary (PO decision 2026-09-26): `Candidate`, `Planned`,
-  `In Progress`, `Review`, `Done`. A blocked item keeps its status and
-  adds `Waiting on: <condition>` after `<br>`; cancelled rows are deleted
-  (git history keeps them). Do not invent new values.
+- Status vocabulary (PO decision 2026-09-26, Scrum Guide grounded): empty
+  cell = ordinary item; `Ready` (Definition of Ready met, selectable);
+  `In Progress` (in the Sprint Backlog); `Done` (Definition of Done met,
+  accepted). Notes after `<br>`: `Sprint: S4`, `Waiting on: <condition>`.
+  Cancelled rows are deleted (git history keeps them). Do not invent
+  values; configurable statuses are a later product decision.
 - Reorder invariants a write path must enforce and an agent must respect
   by hand: same id set, same per-row cell count, row content unchanged
   when only ordering; first-row move is refused unless some row is
@@ -38,16 +40,15 @@ runs it too.
 
 ## Who may change what
 
-- **Order** and **scheduling** (`Candidate` -> `Planned`) are the
-  Product Owner's. The team never adds a PBI row or reorders on its own
+- **Order**, marking `Ready` after refinement, and selecting into the
+  Sprint (`Ready` -> `In Progress`) are the Product Owner's. The team never adds a PBI row or reorders on its own
   initiative; new ideas go into the report as proposals.
-- **The team** moves the item it is working through `In Progress` ->
-  `Review` (with the receipt in the Context cell or the handoff) or adds
-  `Waiting on: <condition>`. Only the Product Owner sets `Done` or deletes
-  a row.
-- One row `In Progress` at a time. Pick the highest row whose status is
-  `Planned` or `In Progress`; if none, report that and stop, do not start
-  a `Candidate` row.
+- **The team** keeps the item `In Progress`, adds `Waiting on:
+  <condition>` when parked, and reports it for acceptance with receipts.
+  Only the Product Owner sets `Done`, drops a status (item "returns to the
+  Product Backlog"), or deletes a row.
+- Pick the highest `In Progress` row; if none, report that and stop. Never
+  start a `Ready` or ordinary row.
 
 ## Naming rule
 

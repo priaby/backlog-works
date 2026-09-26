@@ -15,7 +15,7 @@ updated: 2026-09-25
 
 | Item (PBI) | Core Job | Context | Status | Driver |
 |---|---|---|---|---|
-| PBI-001. First | job | ctx `code` | Planned<br>Sprint: S1 | Team |
+| PBI-001. First | job | ctx `code` | In Progress<br>Sprint: S1 | Team |
 | PBI-002a. Sub slice | job | ctx | Done | PO |
 
 ## Bugs
@@ -29,7 +29,7 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(b.updated, "2026-09-25")
         self.assertEqual(b.ids, ("PBI-001", "PBI-002a"))
         self.assertEqual(b.items[0].title, "First")
-        self.assertEqual(b.items[0].status, "Planned")
+        self.assertEqual(b.items[0].status, "In Progress")
         self.assertEqual(b.items[0].status_note, "Sprint: S1")
         self.assertEqual(b.items[1].status_note, "")
         self.assertEqual(b.problems, ())
@@ -46,16 +46,21 @@ class ParseTests(unittest.TestCase):
         self.assertTrue(any("not in legend" in p for p in b.problems))
 
     def test_waiting_note(self):
-        md = MINIMAL.replace("Planned<br>Sprint: S1", "Planned<br>Waiting on: legal sign-off")
+        md = MINIMAL.replace("In Progress<br>Sprint: S1", "Ready<br>Waiting on: legal sign-off")
         b = parse_backlog(md)
-        self.assertEqual(b.items[0].status, "Planned")
+        self.assertEqual(b.items[0].status, "Ready")
         self.assertEqual(b.items[0].waiting_on, "legal sign-off")
         self.assertEqual(b.items[1].waiting_on, "")
         self.assertEqual(b.problems, ())
 
-    def test_two_in_progress_flagged(self):
-        two = MINIMAL.replace("Planned<br>Sprint: S1", "In Progress").replace("| Done |", "| In Progress |")
-        self.assertIn("more than one row is `In Progress`", parse_backlog(two).problems)
+    def test_empty_status_is_ordinary_and_several_in_progress_allowed(self):
+        md = MINIMAL.replace("In Progress<br>Sprint: S1", "").replace("| Done |", "| In Progress |")
+        b = parse_backlog(md)
+        self.assertEqual(b.items[0].status, "")
+        self.assertTrue(b.items[0].status_known)
+        self.assertEqual(b.problems, ())
+        two = MINIMAL.replace("| Done |", "| In Progress |")
+        self.assertEqual(parse_backlog(two).problems, ())
 
     def test_demo_and_repo_files_are_clean(self):
         for path in (DEMO, REPO_BACKLOG):

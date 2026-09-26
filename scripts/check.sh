@@ -33,8 +33,8 @@ root=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$po
 head=$(curl -sI -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$port/healthz" || echo 000)
 nf=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$port/nope" || echo 000)
 demo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$port/demo" || echo 000)
-if [[ $ok == 1 && $root == 200 && $head == 200 && $nf == 404 && $demo == 200 ]]; then
-  echo "ok smoke: /healthz=ok GET/=200 HEAD/healthz=200 /nope=404 /demo=200"
+if [[ $ok == 1 && $root == 200 && $head == 200 && $nf == 404 && $demo == 301 ]]; then
+  echo "ok smoke: /healthz=ok GET/=200 HEAD/healthz=200 /nope=404 /demo=301"
 else
   echo "FAIL smoke: healthz_ok=$ok root=$root head=$head notfound=$nf demo=$demo"; fail=1
 fi

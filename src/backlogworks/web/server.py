@@ -12,13 +12,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from backlogworks.config import Config
 from backlogworks.demo import DEMO_REPO, load_demo
 from backlogworks.events import EventBus
-from backlogworks.landing import index_html
+from backlogworks.landing import pitch_html
 from backlogworks.web.board import render_board
 
-Response = tuple[int, bytes, str]
+Response = tuple[int, bytes, str] | tuple[int, bytes, str, dict[str, str]]
 Route = Callable[[], Response]
 
 _COMMON_HEADERS = {"X-Robots-Tag": "noindex", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
+DEMO_SUBTITLE = "Fictitious translator product, read-only"
 
 
 class App:
@@ -37,12 +38,13 @@ class App:
         return 200, b"ok", "text/plain; charset=utf-8"
 
     def landing(self) -> Response:
-        return 200, index_html().encode("utf-8"), "text/html; charset=utf-8"
+        """The landing is the demo backlog through the one board engine, with the pitch on top."""
+        _, backlog = load_demo(self.bus)
+        page = render_board(backlog, repo=DEMO_REPO, subtitle=DEMO_SUBTITLE, intro_html=pitch_html())
+        return 200, page.encode("utf-8"), "text/html; charset=utf-8"
 
     def demo_board(self) -> Response:
-        _, backlog = load_demo(self.bus)
-        page = render_board(backlog, repo=DEMO_REPO, subtitle="Fictitious translator product, read-only")
-        return 200, page.encode("utf-8"), "text/html; charset=utf-8"
+        return 301, b"", "text/plain; charset=utf-8", {"Location": "/"}
 
     def dispatch(self, path: str) -> Response:
         route = self.routes.get(path.split("?", 1)[0])
@@ -66,11 +68,12 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             pass
 
-    def _send(self, status: int, body: bytes, content_type: str, write_body: bool = True) -> None:
+    def _send(self, status: int, body: bytes, content_type: str,
+              extra: dict[str, str] | None = None, write_body: bool = True) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        for k, v in _COMMON_HEADERS.items():
+        for k, v in {**_COMMON_HEADERS, **(extra or {})}.items():
             self.send_header(k, v)
         self.end_headers()
         if write_body:

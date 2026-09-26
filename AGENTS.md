@@ -79,16 +79,18 @@ agent's first message in this repo, without being reminded:
   them; put genuinely PO-only steps (account sign-ins, token creation,
   vault writes, brand/license calls) in the next handoff instead of asking
   mid-task.
-- **One PBI in progress at a time.** Work one backlog item at a time; pull
-  the next only after the current one is merged and moved to `Review`, or
-  is parked with `Waiting on: <condition>` in its Status cell.
+- **One PBI worked at a time.** Several items may be `In Progress` (the
+  Sprint Backlog); the team works the highest one first and pulls the next
+  only after it is merged and reported for acceptance, or parked with
+  `Waiting on: <condition>` in its Status cell.
 - **The team never creates Product Backlog Items on its own.** Work the
   Product Owner asks for happens inside the active item; findings and ideas
   are proposals in the report, and become PBIs only when the Product Owner
   says so.
 - **Backlog document order is priority order.** `docs/product/backlog.md`'s
-  document order is priority order; work the highest-priority item with
-  status `Planned` or `In Progress`.
+  document order is priority order; work the highest `In Progress` item.
+  Never start a `Ready` or ordinary item; selection into the Sprint is the
+  Product Owner's.
 - **Model routing is the orchestrator's call, not the Product Owner's.**
   Route packets to models by difficulty and quota; never ask the Product
   Owner to pick a model.
@@ -160,9 +162,11 @@ agent's first message in this repo, without being reminded:
 format: a markdown table whose rows begin `| PBI-<digits>` in the table's
 active section, columns `Item (PBI)`, `Core Job`, `Context`, `Status`,
 `Driver`, plus a `## Bugs` section below it. Statuses (PO decision
-2026-09-26): `Candidate`, `Planned`, `In Progress`, `Review`, `Done`;
-blocked work adds `Waiting on: <condition>` after `<br>`; cancelled rows are
-deleted. This format (and the row-reorder invariants a future
+2026-09-26, Scrum Guide grounded): empty = ordinary item; `Ready` = meets
+the Definition of Ready, selectable in Sprint Planning; `In Progress` =
+in the Sprint Backlog; `Done` = meets the Definition of Done, accepted.
+Notes after `<br>` (`Sprint: S4`, `Waiting on: <condition>`); cancelled
+rows are deleted. This format (and the row-reorder invariants a future
 write path should enforce — same id set, same per-row cell count, only row
 order changes) is inherited from Crest's `backlog_source.py` design; keep
 compatible with it unless the Product Owner approves a format change.

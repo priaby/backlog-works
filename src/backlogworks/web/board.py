@@ -12,10 +12,8 @@ _CODE_RE = re.compile(r"`([^`]+)`")
 _PBI_RE = re.compile(r"\b(PBI-\d+[a-z]?)\b")
 
 STATUS_CLASS = {
-    "Candidate": "s-candidate",
-    "Planned": "s-planned",
+    "Ready": "s-ready",
     "In Progress": "s-progress",
-    "Review": "s-review",
     "Done": "s-done",
 }
 
@@ -35,10 +33,11 @@ CSS = """
   .ctx { color: var(--muted); font-size:.9em; margin:0; }
   .meta { display:flex; flex-wrap:wrap; gap:.4em; margin-top:.6em; align-items:center; font-size:.8em; }
   .pill { border-radius:999px; padding:.15em .6em; font-weight:600; white-space:nowrap; }
-  .s-candidate{background:#eee;color:#555} .s-planned{background:#fff1cc;color:#8a5a00}
-  .s-progress{background:#e6f4ea;color:#1e7b3a} .s-review{background:#efe6fd;color:#5b2ea6}
+  .s-ready{background:#e8f0fe;color:#1a4fbf} .s-progress{background:#e6f4ea;color:#1e7b3a}
   .s-done{background:#d9f2e0;color:#0f5a2b} .s-waiting{background:#fde8e8;color:#a12a2a}
   .s-unknown{background:#fde8e8;color:#a12a2a;outline:1px dashed #a12a2a}
+  .intro { background:#fff; border:1px solid var(--line); border-radius:.9em; padding:1em 1.1em; margin:.6em 0 1em; }
+  .intro h2 { margin:0 0 .3em; font-size:1.1em; } .intro p { margin:.3em 0; color:#333; } .intro ul { margin:.3em 0 0 1.1em; padding:0; color:#333; }
   .note { color: var(--muted); }
   .rank { color: var(--muted); font-size:.8em; }
   .problems { background:#fff4e5; border:1px solid #f5d29c; border-radius:.6em; padding:.6em .9em; font-size:.85em; }
@@ -55,8 +54,11 @@ def _inline(text: str) -> str:
 
 
 def _card(rank: int, item: Item) -> str:
-    cls = STATUS_CLASS.get(item.status, "s-unknown")
     extra = " done" if item.status == "Done" else ""
+    if item.status == "":
+        pill = ""
+    else:
+        pill = f'<span class="pill {STATUS_CLASS.get(item.status, "s-unknown")}">{html.escape(item.status)}</span>'
     if item.waiting_on:
         note = f'<span class="pill s-waiting">Waiting</span><span class="note">on {_inline(item.waiting_on)}</span>'
     else:
@@ -67,15 +69,17 @@ def _card(rank: int, item: Item) -> str:
         f'<div class="title">{_inline(item.title)}</div>'
         f'<p class="job">{_inline(item.core_job)}</p>'
         f'<p class="ctx">{_inline(item.context)}</p>'
-        f'<div class="meta"><span class="pill {cls}">{html.escape(item.status)}</span>{note}'
+        f'<div class="meta">{pill}{note}'
         f'<span class="note">Driver: {_inline(item.driver)}</span></div>'
         f"</article>"
     )
 
 
-def render_board(backlog: Backlog, *, repo: str, subtitle: str = "") -> str:
+def render_board(backlog: Backlog, *, repo: str, subtitle: str = "", intro_html: str = "") -> str:
+    """One engine for every backlog view: tenant boards, the demo, and the
+    landing all call this. `intro_html` is trusted, pre-escaped chrome."""
     cards = "\n".join(_card(i + 1, item) for i, item in enumerate(backlog.items))
-    counts = {s: sum(1 for i in backlog.items if i.status == s) for s in STATUSES}
+    counts = {s: sum(1 for i in backlog.items if i.status == s) for s in STATUSES if s}
     summary = " · ".join(f"{n} {s}" for s, n in counts.items() if n)
     problems = ""
     if backlog.problems:
@@ -94,6 +98,7 @@ def render_board(backlog: Backlog, *, repo: str, subtitle: str = "") -> str:
 <header><h1>{html.escape(backlog.title)}</h1>
 <small>{html.escape(repo)} · updated {html.escape(backlog.updated or "n/a")} · {html.escape(subtitle)}</small></header>
 <main>
+{intro_html}
 {problems}
 <p class="rank">{len(backlog.items)} items · {html.escape(summary)}</p>
 {cards}

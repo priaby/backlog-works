@@ -76,6 +76,6 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(seen, [])
 
     def test_demo_route_identifies_fictitious_read_only_product(self):
-        status, body, _ = App(Config(), EventBus()).dispatch("/demo")
+        status, body, _ = App(Config(), EventBus()).dispatch("/")[:3]
         self.assertEqual(status, 200)
         self.assertIn(b"Fictitious translator product, read-only", body)

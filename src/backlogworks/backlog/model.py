@@ -10,14 +10,18 @@ from dataclasses import dataclass, field
 ROW_ID_RE = re.compile(r"^\| (PBI-\d+[a-z]?)\. ")
 ROW_PREFIX = "| PBI-"
 EXPECTED_CELLS = 5
-# Product Owner decision 2026-09-26: five statuses. A blocked item keeps its
-# status and carries a "Waiting on: <condition>" note after <br>; cancelled
-# rows are deleted from the file (git history keeps them).
+# Product Owner decision 2026-09-26, grounded in the Scrum Guide 2020 and
+# the ScrumPLoP "Definition of Ready" pattern: an ordinary item has no
+# status (empty cell); "Ready" = meets the Definition of Ready after
+# refinement and may be selected in Sprint Planning ("ready for selection",
+# Scrum Guide, Product Backlog); "In Progress" = selected into a Sprint
+# (Sprint Backlog); "Done" = meets the Definition of Done. Anything else is a
+# note after <br> (e.g. "Sprint: S4", "Waiting on: <condition>"). Cancelled
+# rows are deleted from the file; git history keeps them.
 STATUSES = (
-    "Candidate",
-    "Planned",
+    "",
+    "Ready",
     "In Progress",
-    "Review",
     "Done",
 )
 WAITING_PREFIX = "Waiting on:"
@@ -129,7 +133,5 @@ def parse_backlog(markdown: str) -> Backlog:
         items.append(item)
     if any(l.startswith(ROW_PREFIX) for l in lines[end:]):
         problems.append("a second `| PBI-` block exists after the active table")
-    if len([i for i in items if i.status == "In Progress"]) > 1:
-        problems.append("more than one row is `In Progress`")
     title = fm.get("title") or next((l[2:].strip() for l in lines if l.startswith("# ")), "Product Backlog")
     return Backlog(title, fm.get("updated", ""), tuple(items), start, end, tuple(problems))

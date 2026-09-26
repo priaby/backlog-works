@@ -38,10 +38,20 @@ class BoardTests(unittest.TestCase):
         self.assertEqual(seen[0].repo, source.DEMO_REPO)
 
     def test_html_is_escaped(self):
-        md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| PBI-001. <b>x</b> | j | c | Planned | T |\n"
+        md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| PBI-001. <b>x</b> | j | c | Ready | T |\n"
         page = render_board(parse_backlog(md), repo="r")
         self.assertIn("&lt;b&gt;x&lt;/b&gt;", page)
         self.assertNotIn("<b>x</b>", page)
+
+    def test_ordinary_item_has_no_pill_and_demo_redirects(self):
+        from backlogworks.config import Config
+        from backlogworks.web.server import App
+        md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| PBI-001. x | j | c |  | T |\n"
+        page = render_board(parse_backlog(md), repo="r")
+        self.assertNotIn('class="pill', page)
+        resp = App(Config(), EventBus()).dispatch("/demo")
+        self.assertEqual(resp[0], 301)
+        self.assertEqual(resp[3]["Location"], "/")
 
     def test_bus_isolates_failing_handler(self):
         bus = EventBus()

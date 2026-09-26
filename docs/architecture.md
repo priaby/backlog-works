@@ -44,9 +44,14 @@ flowchart LR
   notify -->|magic-link mail| MAIL[Mailjet Send API<br/>sub-account key]
 ```
 
-The backlog **file in the customer's repo is the only source of truth**.
-backlog.works stores no copy of record, only identity (sessions, keys), the
-event timeline, and an in-memory read cache.
+Each tenant has **exactly one source of truth for its backlog file**,
+chosen at onboarding: a file in the tenant's GitHub repo (the first
+adapter), or a document hosted by backlog.works (PO direction 2026-09-26:
+the repo file is one usage scenario, not the only one). The `backlog`
+block defines the `BacklogSource` port (`read() -> (text, version)`,
+`write(text, base_version) -> version`); `github` and the hosted store are
+adapters. backlog.works keeps identity, the event timeline, hosted
+documents for tenants that chose hosting, and an in-memory read cache.
 
 ## 2. Blocks
 
@@ -59,14 +64,14 @@ what is deployed is evidenced separately in `docs/ops/`.
 |---|---|---|---|---|---|
 | `config` | every env var, read once into one frozen dataclass | | | `PORT` | `BASE_URL`, `GITHUB_*`, `GITHUB_WEBHOOK_SECRET`, `BACKLOG_PATH`, `SESSION_SECRET`, `DATABASE_PATH`, `MAILJET_API_KEY`, `MAILJET_API_SECRET`, `MAIL_FROM` |
 | `events` | `Event` envelope, `EventBus` (sync, in-process, registration-ordered, subscriber-isolated), audit sink; next: the append-only `events` table (timeline) and the generic `outbox` table with a transactional staging API and lease/ack API | `events.handler_failed` | | bus + stderr audit | timeline append, outbox staging and leasing |
-| `backlog` | file format as data: parse table, legend, items; validate reorder and single-cell status change; emit new text. **Pure, no I/O, no internal imports.** | | | parse | reorder / status change (PBI-001) |
-| `github` | Contents API read (ETag cache) and commit (blob `sha` guard); `push` webhook receiver with signature check | `backlog.loaded`, `backlog.committed`, `backlog.commit_conflicted`, `backlog.file_changed` | `backlog.file_changed` (drop cache) | empty | PBI-001 |
+| `backlog` | file format as data: parse table, items; validate reorder and single-cell status change; emit new text; the `BacklogSource` port (Protocol, no I/O). **Pure, no internal imports.** | | | parse | reorder / status change, port (PBI-001) |
+| `github` | `BacklogSource` adapter: Contents API read (ETag cache) and commit (blob `sha` guard); `push` webhook receiver with signature check | `backlog.loaded`, `backlog.committed`, `backlog.commit_conflicted`, `backlog.file_changed` | `backlog.file_changed` (drop cache) | empty | PBI-001 |
 | `auth` | magic-link sign-in, PO session cookie, CSRF, per-repo API keys; owns its tables; stages the private mail job through the events outbox API in the same transaction as its state | `auth.signin_requested`, `auth.signed_in`, `auth.signed_out`, `auth.key_issued`, `auth.key_revoked`, `auth.key_used` | | empty | PBI-003, PBI-004 |
 | `notify` | delivery worker: leases mail jobs from the events outbox, sends via the Mailjet Send API (HTTPS), acks; retries with backoff and dead-letters; never called directly, never reads another block's tables | `notify.sent`, `notify.failed` | outbox jobs of kind `mail`; `backlog.item_status_changed` (stages a PO digest job) | empty | PBI-003 |
-| `demo` | fictitious tenant `demo/lighthouse` packaged with the image, for showing the board before a real tenant exists | `backlog.loaded` (`sha` = content hash) | | `/demo`, read-only | hidden once a tenant is configured |
-| `landing` | public `/` and pitch pages | | | placeholder + link to demo | PBI-006 (Brand and landing page) |
+| `demo` | fictitious tenant `demo/lighthouse` packaged with the image; a `BacklogSource` reading a packaged file | `backlog.loaded` (`sha` = content hash) | | served on `/` | stays as the public sample |
+| `landing` | pitch chrome only; `/` is the demo backlog rendered by the one board engine (`web.board`), never a second implementation | | | pitch above the demo board | PBI-006 (Brand and landing page) |
 | `docs` | product documentation at `/docs/*` from markdown packaged in the image | | | empty | first pages: file format and status legend (with PBI-001), API reference (with PBI-004) |
-| `web` | routes, server-rendered pages, JSON endpoints, headers, CSRF check; the only place blocks meet | `backlog.reordered`, `backlog.item_status_changed` | | `/`, `/healthz`, `/demo` | board, API, sign-in routes |
+| `web` | routes, the single board engine (`board.py`), JSON endpoints, SSE, headers, CSRF check; the only place blocks meet | `backlog.reordered`, `backlog.item_status_changed` | `backlog.*` (SSE fan-out) | `/` (pitch + demo board), `/healthz`, `/demo` -> `/` | tenant boards, API, sign-in |
 | `__main__` | composition root: build bus, subscribe consumers, construct server, publish `service.started`, serve | `service.started` | | | |
 
 ### Dependency rule (enforced)
@@ -248,9 +253,15 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 
 ## 5. Rules
 
-1. **Stdlib only** until a dependency is approved by the Product Owner in a
-   report. A product holding a write token to customer repos keeps its
-   supply-chain surface at zero.
+1. **Dependencies are allowed, explicit, and removable** (PO decision
+   2026-09-26, replacing "stdlib only"). Every third-party package is a
+   row in the dependency register (section 8) with purpose, the stdlib or
+   in-house alternative, and what it would cost to remove; pinned in
+   `requirements.txt` with hashes; the gate fails when the register and
+   the requirements file disagree. Default remains stdlib when it is
+   within reach; the bar for a dependency is that it removes a class of
+   bugs (HTTP server hardening, templating auto-escape, SQL migrations),
+   not that it saves typing.
 2. **One process, one image, one config dataclass.** `os.environ` is read
    only in `config.py` (gate). Network modules only in `github`, `notify`,
    and the server binding in `web` (gate).
@@ -272,11 +283,13 @@ No backlog content at rest. A restart loses only the in-memory read cache.
    block, run by `scripts/check.sh`.
 9. **The format contract**: first contiguous `| PBI-` block, rows
    `| PBI-<n>[a-z]. Title | Core Job | Context | Status[<br>note] | Driver |`.
-   The five statuses in `backlog.STATUSES` (`Candidate`, `Planned`,
-   `In Progress`, `Review`, `Done`; PO decision 2026-09-26) are canonical
-   for every tenant; a blocked item adds `Waiting on: <condition>` in the
-   note; cancelled rows are deleted. The file's legend callout is
-   documentation, not a source of custom vocabularies. The repo's own `docs/product/backlog.md` is
+   Statuses (PO decision 2026-09-26, Scrum Guide 2020 and ScrumPLoP
+   "Definition of Ready"): empty cell = ordinary item; `Ready` = meets the
+   Definition of Ready, "ready for selection in a Sprint Planning event";
+   `In Progress` = in the Sprint Backlog; `Done` = meets the Definition of
+   Done. Notes after `<br>` (`Sprint: S4`, `Waiting on: <condition>`);
+   cancelled rows are deleted. Fixed for every tenant; configurable
+   statuses are a later product decision. The repo's own `docs/product/backlog.md` is
    checked by the same parser.
 10. **Reader and writer are different contracts.** `parse_backlog` is a
     tolerant reader for display (records problems, never raises on a
@@ -305,7 +318,7 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 | 2026-09-25 | Synchronous dispatch, isolated subscribers, no broker | simplest thing that keeps the event contract honest | a subscriber's latency hurts a request |
 | 2026-09-25 | Append-only `events` table is both timeline feature and audit log | one mechanism, product value from day one | volume needs partitioning |
 | 2026-09-25 | Outbox pattern for mail | at-least-once without a queue service | second external effect type |
-| 2026-09-25 | Stdlib only, Python 3.12 image | supply-chain surface; deploy path proven | a named need |
+| 2026-09-25 | Stdlib only, Python 3.12 image | supply-chain surface; deploy path proven | superseded 2026-09-26 (dependencies allowed with register) |
 | 2026-09-25 | SQLite on a Railway volume, per-block table ownership | one process, tiny write volume | multi-instance or multi-region |
 | 2026-09-25 | Single-tenant first, `repo` column everywhere | ship PBI-001..004 without a rewrite | second customer repo |
 | 2026-09-25 | `demo` block with a fictitious packaged backlog | show the board before GitHub source and sign-in exist | first real tenant configured |
@@ -313,11 +326,15 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 | 2026-09-25 | `events` owns a generic outbox with private job payloads; `notify` is the delivery worker | review finding 2: magic-link mail cannot be built from a hashed event | a second delivery kind that needs its own worker |
 | 2026-09-25 | `operations` intent record around every GitHub write; uncertain outcomes surfaced, never retried blindly | review finding 1: GitHub and SQLite cannot share a transaction | never |
 | 2026-09-26 | Live updates from v1 via SSE as a post-commit observer | PO decision (supersedes 2026-09-25 "refresh only") | stdlib thread-per-stream shows strain |
-| 2026-09-26 | Five statuses, fixed for all tenants; `Waiting on:` note; cancelled rows deleted | PO: "too many statuses" | a tenant needs a different lifecycle |
+| 2026-09-26 | Three statuses plus "no status" (ordinary / Ready / In Progress / Done), Scrum Guide grounded; notes for Sprint and Waiting; cancelled rows deleted | PO: "too many statuses"; supersedes the five-status row of the same day | configurable statuses become a product decision |
+| 2026-09-26 | Dependencies allowed with a register, pins, and removal notes | PO: "reasonable dependencies, decision explicit so we can remove later"; supersedes "stdlib only" | never |
+| 2026-09-26 | `BacklogSource` port; GitHub file is one adapter, hosted document another | PO: the repo file is one usage scenario | never |
+| 2026-09-26 | One board engine for tenants, demo, and landing; `/` shows the demo backlog | PO: no separate backlog implementation for the landing | never |
+| 2026-09-26 | Mailjet sub-account credentials live in Railway project variables | PO decision | never |
 | 2026-09-26 | Direct commits to the configured branch, no PR mode | PO default accepted | a customer's branch protection blocks it |
 | 2026-09-26 | Agents change status only; Product Owner reorders and sets Done | PO default accepted | never |
 | 2026-09-26 | Webhook required for tenant onboarding (push -> `backlog.file_changed`) | PO: "we'll need webhooks" | never |
-| 2026-09-26 | Mail via Mailjet Send API over HTTPS, a dedicated sub-account API key under the existing Mailjet login | Railway blocks SMTP below Pro; HTTPS works on every plan; sub-account keeps the two products apart | provider terms or deliverability |
+| 2026-09-26 | Mail via Mailjet Send API over HTTPS, a dedicated sub-account API key under the existing Mailjet login, stored as Railway project variables | Railway blocks SMTP below Pro; HTTPS works on every plan; sub-account keeps the two products apart | provider terms or deliverability |
 | 2026-09-26 | Timeline kept forever, emails hashed | PO default accepted | a retention request |
 | 2026-09-26 | First tenant is this repository (dogfood) | PO default accepted | partner onboarding |
 | 2026-09-26 | Unknown GitHub outcome shown as "verifying", resolved on next request | PO default accepted | never |
@@ -333,3 +350,13 @@ No backlog content at rest. A restart loses only the in-memory read cache.
   findings 1-4 and 11-13 are resolved in this page; findings 5-9, 14 and
   the code parts of 13 are in the hardening branch; finding 10 is rule 10
   and lands with the write path.
+
+## 8. Dependency register
+
+Third-party packages in the image. Empty means the build is stdlib only.
+The gate compares this table with `requirements.txt` once that file
+exists.
+
+| Package | Pinned | Purpose | Alternative if removed | Removal cost | Added |
+|---|---|---|---|---|---|
+| (none) | | | | | |

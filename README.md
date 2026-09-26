@@ -35,7 +35,7 @@ surface for a human to steer it.
 
 `scripts/check.sh` -- repo gate: backlog file format, architecture rules, Python compile, unit tests, app smoke test, skill wiring, secret-literal scan.
 
-`/demo` serves a fictitious product backlog ("Lighthouse") rendered by the same parser and board the product will use. Architecture: `docs/architecture.md`.
+`/` serves the pitch plus a fictitious product backlog ("Lighthouse") rendered by the one board engine every tenant will use. Architecture: `docs/architecture.md`.
 
 ## Working in this repo with agents
 
