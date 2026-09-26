@@ -36,8 +36,8 @@ flowchart LR
   GH -->|push webhook| BW
   subgraph BW[backlog.works: one Python process on Railway]
     direction TB
-    web --> backlog & github & auth & demo & landing & docs
-    github & auth & notify & demo -.->|events| events
+    web --> backlog & github & auth & local & landing & docs
+    github & auth & notify & local -.->|events| events
     events -.-> notify & timeline[(timeline / outbox<br/>SQLite)]
   end
   BW -->|Contents API read / commit| GH
@@ -62,25 +62,25 @@ what is deployed is evidenced separately in `docs/ops/`.
 
 | Block | Responsibility | Publishes | Subscribes | As-is | Next |
 |---|---|---|---|---|---|
-| `config` | every env var, read once into one frozen dataclass | | | `PORT` | `BASE_URL`, `GITHUB_*`, `GITHUB_WEBHOOK_SECRET`, `BACKLOG_PATH`, `SESSION_SECRET`, `DATABASE_PATH`, `MAILJET_API_KEY`, `MAILJET_API_SECRET`, `MAIL_FROM` |
+| `config` | every env var, read once into one frozen dataclass | | | `PORT`, `BACKLOG_FILE` | `BASE_URL`, `GITHUB_*`, `GITHUB_WEBHOOK_SECRET`, `BACKLOG_PATH`, `SESSION_SECRET`, `DATABASE_PATH`, `MAILJET_API_KEY`, `MAILJET_API_SECRET`, `MAIL_FROM` |
 | `events` | `Event` envelope, `EventBus` (sync, in-process, registration-ordered, subscriber-isolated), audit sink; next: the append-only `events` table (timeline) and the generic `outbox` table with a transactional staging API and lease/ack API | `events.handler_failed` | | bus + stderr audit | timeline append, outbox staging and leasing |
 | `backlog` | file format as data: parse table, items; validate reorder and single-cell status change; emit new text; the `BacklogSource` port (Protocol, no I/O). **Pure, no internal imports.** | | | parse | reorder / status change, port (J709) |
 | `github` | `BacklogSource` adapter: Contents API read (ETag cache) and commit (blob `sha` guard); `push` webhook receiver with signature check | `backlog.loaded`, `backlog.committed`, `backlog.commit_conflicted`, `backlog.file_changed` | `backlog.file_changed` (drop cache) | empty | J709 |
 | `auth` | magic-link sign-in, PO session cookie, CSRF, per-repo API keys; owns its tables; stages the private mail job through the events outbox API in the same transaction as its state | `auth.signin_requested`, `auth.signed_in`, `auth.signed_out`, `auth.key_issued`, `auth.key_revoked`, `auth.key_used` | | empty | N835, F196 |
 | `notify` | delivery worker: leases mail jobs from the events outbox, sends via the Mailjet Send API (HTTPS), acks; retries with backoff and dead-letters; never called directly, never reads another block's tables | `notify.sent`, `notify.failed` | outbox jobs of kind `mail`; `backlog.item_status_changed` (stages a PO digest job) | empty | N835 |
-| `demo` | fictitious tenant `demo/lighthouse` packaged with the image; a `BacklogSource` reading a packaged file | `backlog.loaded` (`sha` = content hash) | | served on `/` | stays as the public sample |
-| `landing` | pitch chrome only; `/` is the demo backlog rendered by the one board engine (`web.board`), never a second implementation | | | pitch above the demo board | G761 (Brand and landing page) |
+| `local` | this product's own backlog file read from disk (`Config.backlog_file`, default `docs/product/backlog.md`, copied into the image); a `BacklogSource`-shaped read, no write | `backlog.loaded` (`sha` = content hash) | | served on `/` as `priaby/backlog-works` | superseded by the `github` adapter for this repo with J709 |
+| `landing` | pitch chrome only; `/` is this product's own backlog rendered by the one board engine (`web.board`), never a second implementation | | | pitch above the board | G761 (Brand and landing page) |
 | `docs` | product documentation at `/docs/*` from markdown packaged in the image | | | empty | first pages: file format and status legend (with J709), API reference (with F196) |
-| `web` | routes, the single board engine (`board.py`), JSON endpoints, SSE, headers, CSRF check; the only place blocks meet | `backlog.reordered`, `backlog.item_status_changed` | `backlog.*` (SSE fan-out) | `/` (pitch + demo board), `/healthz`, `/demo` -> `/` | tenant boards, API, sign-in |
+| `web` | routes, the single board engine (`board.py`), JSON endpoints, SSE, headers, CSRF check; the only place blocks meet | `backlog.reordered`, `backlog.item_status_changed` | `backlog.*` (SSE fan-out) | `/` (pitch + this repo's board), `/backlog.md`, `/healthz` | tenant boards, API, sign-in |
 | `__main__` | composition root: build bus, subscribe consumers, construct server, publish `service.started`, serve | `service.started` | | | |
 
 ### Dependency rule (enforced)
 
 ```
 __main__ -> config events web notify auth github        (wiring only)
-web      -> backlog github auth demo landing docs events config
+web      -> backlog github auth local landing docs events config
 github   -> backlog events config
-demo     -> backlog events config
+local    -> backlog events config
 auth     -> events config
 notify   -> events config
 landing  -> config
@@ -192,7 +192,7 @@ and send a heartbeat every 25 s so mobile proxies keep the connection.
 | Event | Payload | Produced by | Consumed by |
 |---|---|---|---|
 | `service.started` | port | `__main__` | audit |
-| `backlog.loaded` | source, sha (blob sha or content hash), items, problems | github, demo | audit |
+| `backlog.loaded` | source, sha (blob sha or content hash), items, problems | github, local | audit |
 | `backlog.file_changed` | commit_sha, delivery_id | github (webhook) | github cache, timeline |
 | `backlog.reordered` | moved ids, base_sha, new_sha | web | timeline |
 | `backlog.item_status_changed` | id, from, to, new_sha | web | timeline, notify (to PO when an agent moves to review) |
@@ -293,9 +293,13 @@ No backlog content at rest. A restart loses only the in-memory read cache.
    Definition of Ready, "ready for selection in a Sprint Planning event";
    `In Progress` = in the Sprint Backlog; `Done` = meets the Definition of
    Done. Notes after `<br>` (`Sprint: S4`, `Waiting on: <condition>`);
-   cancelled rows are deleted. Fixed for every tenant; configurable
-   statuses are a later product decision. The repo's own `docs/product/backlog.md` is
-   checked by the same parser.
+   cancelled rows are deleted. The parser accepts any other status text as
+   a custom status (tolerant reader); the board's view selector lists
+   `In Progress`, `Ready`, `Done`, then custom statuses in first-seen
+   order. `scripts/check_backlog.py` holds this repo's own
+   `docs/product/backlog.md` to the three-status legend (repo-process
+   rule). Legend-declared vocabularies are R685 (Configurable statuses per
+   backlog).
 10. **Reader and writer are different contracts.** `parse_backlog` is a
     tolerant reader for display (records problems, never raises on a
     row). The write path (J709) works on raw row byte slices with exact
@@ -334,6 +338,9 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 | 2026-09-26 | Three statuses plus "no status" (ordinary / Ready / In Progress / Done), Scrum Guide grounded; notes for Sprint and Waiting; cancelled rows deleted | PO: "too many statuses"; supersedes the five-status row of the same day | configurable statuses become a product decision |
 | 2026-09-26 | Dependencies allowed with a register, pins, and removal notes | PO: "reasonable dependencies, decision explicit so we can remove later"; supersedes "stdlib only" | never |
 | 2026-09-26 | `BacklogSource` port; GitHub file is one adapter, hosted document another | PO: the repo file is one usage scenario | never |
+| 2026-09-26 | `local` block serves this repo's own backlog on `/`; `demo` block and `/demo` removed | PO: the landing shows the real backlog, not a fictitious one | J709 moves this repo onto the `github` adapter |
+| 2026-09-26 | View selector is statuses only (All, In Progress, Ready, Done, then custom); unknown status is a repo check, not a parser problem | PO: custom statuses must appear automatically | R685 lands |
+| 2026-09-26 | Card up/down/top controls reorder in the browser only until J709; `persistOrder(ids)` is the hook | PO: controls now, write path later | J709 lands |
 | 2026-09-26 | One board engine for tenants, demo, and landing; `/` shows the demo backlog | PO: no separate backlog implementation for the landing | never |
 | 2026-09-26 | Mailjet sub-account credentials live in Railway project variables | PO decision | never |
 | 2026-09-26 | Direct commits to the configured branch, no PR mode | PO default accepted | a customer's branch protection blocks it |

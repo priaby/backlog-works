@@ -10,9 +10,9 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from backlogworks.config import Config
-from backlogworks.demo import DEMO_REPO, load_demo
 from backlogworks.events import EventBus
 from backlogworks.landing import pitch_html
+from backlogworks.local import LOCAL_REPO, load_backlog
 from backlogworks.web.board import render_board
 
 Response = tuple[int, bytes, str] | tuple[int, bytes, str, dict[str, str]]
@@ -23,7 +23,7 @@ _COMMON_HEADERS["Content-Security-Policy"] = (
     "default-src 'none'; style-src 'unsafe-inline'; "
     "script-src 'unsafe-inline'; img-src 'self'"
 )
-DEMO_SUBTITLE = "Fictitious translator product, read-only"
+LOCAL_SUBTITLE = "This product's own backlog. Order changes are previews until sign-in ships."
 
 
 class App:
@@ -35,24 +35,26 @@ class App:
         self.routes: dict[str, Route] = {
             "/": self.landing,
             "/healthz": self.healthz,
-            "/demo": self.demo_board,
-            "/backlog.md": self.demo_markdown,
+            "/backlog.md": self.source_markdown,
         }
 
     def healthz(self) -> Response:
         return 200, b"ok", "text/plain; charset=utf-8"
 
     def landing(self) -> Response:
-        """The landing is the demo backlog through the one board engine, with the pitch on top."""
-        _, backlog = load_demo(self.bus)
-        page = render_board(backlog, repo=DEMO_REPO, subtitle=DEMO_SUBTITLE, intro_html=pitch_html())
+        """The landing is this product's own backlog through the one board engine, with the pitch on top."""
+        try:
+            _, backlog = load_backlog(self.config, self.bus)
+        except (OSError, ValueError):
+            return 503, b"backlog unavailable", "text/plain; charset=utf-8"
+        page = render_board(backlog, repo=LOCAL_REPO, subtitle=LOCAL_SUBTITLE, intro_html=pitch_html())
         return 200, page.encode("utf-8"), "text/html; charset=utf-8"
 
-    def demo_board(self) -> Response:
-        return 301, b"", "text/plain; charset=utf-8", {"Location": "/"}
-
-    def demo_markdown(self) -> Response:
-        markdown, _ = load_demo(self.bus)
+    def source_markdown(self) -> Response:
+        try:
+            markdown, _ = load_backlog(self.config, self.bus)
+        except (OSError, ValueError):
+            return 503, b"backlog unavailable", "text/plain; charset=utf-8"
         return 200, markdown.encode("utf-8"), "text/markdown; charset=utf-8"
 
     def dispatch(self, path: str) -> Response:

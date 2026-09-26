@@ -27,10 +27,10 @@ ALLOWED = {
     "github": {"backlog", "events", "config"},
     "auth": {"events", "config"},
     "notify": {"events", "config"},
-    "demo": {"backlog", "events", "config"},
+    "local": {"backlog", "events", "config"},
     "landing": {"config"},
     "docs": {"config"},
-    "web": {"backlog", "github", "auth", "demo", "landing", "docs", "events", "config"},
+    "web": {"backlog", "github", "auth", "local", "landing", "docs", "events", "config"},
     "__main__": {"config", "events", "web", "notify", "auth", "github"},  # composition root
     "__init__": set(),
 }

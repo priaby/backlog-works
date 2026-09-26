@@ -38,8 +38,8 @@ class ImportTests(unittest.TestCase):
             ("from .model import Item", "backlog/__init__.py"),
             ("from . import model", "backlog/__init__.py"),
             ("from .. import model", "backlog/nested/probe.py"),
-            ("from backlogworks import backlog", "demo/source.py"),
-            ("from ..events import Event", "demo/source.py"),
+            ("from backlogworks import backlog", "local/source.py"),
+            ("from ..events import Event", "local/source.py"),
             ("import json\nfrom collections import Counter", "backlog/probe.py"),
         ):
             with self.subTest(source=source):
@@ -111,7 +111,7 @@ class PurityTests(unittest.TestCase):
             tree = ast.parse(source)
             with self.subTest(source=source):
                 self.assertTrue(checker.check_purity(checker.SRC / "backlog/probe.py", tree))
-                self.assertEqual(checker.check_purity(checker.SRC / "demo/source.py", tree), [])
+                self.assertEqual(checker.check_purity(checker.SRC / "local/source.py", tree), [])
 
     def test_pure_parser_operations_are_allowed(self):
         tree = ast.parse("import re\nrows = text.splitlines()\nmatch = re.match('x', rows[0])")

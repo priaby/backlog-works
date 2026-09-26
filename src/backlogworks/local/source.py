@@ -5,18 +5,18 @@ import hashlib
 from pathlib import Path
 
 from backlogworks.backlog import Backlog, parse_backlog
+from backlogworks.config import Config
 from backlogworks.events import Event, EventBus
 
-DEMO_REPO = "demo/lighthouse"
-_FILE = Path(__file__).with_name("backlog.md")
+LOCAL_REPO = "priaby/backlog-works"
 
 
-def load_demo(bus: EventBus | None = None) -> tuple[str, Backlog]:
-    content = _FILE.read_bytes()
+def load_backlog(config: Config, bus: EventBus | None = None) -> tuple[str, Backlog]:
+    content = Path(config.backlog_file).read_bytes()
     markdown = content.decode("utf-8")
     backlog = parse_backlog(markdown)
     if bus is not None:
-        bus.publish(Event("backlog.loaded", {"source": "packaged", "sha": hashlib.sha1(content).hexdigest(),
+        bus.publish(Event("backlog.loaded", {"source": "local", "sha": hashlib.sha1(content).hexdigest(),
                                              "items": len(backlog.items),
-                                             "problems": len(backlog.problems)}, repo=DEMO_REPO))
+                                             "problems": len(backlog.problems)}, repo=LOCAL_REPO))
     return markdown, backlog
