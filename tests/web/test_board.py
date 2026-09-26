@@ -49,6 +49,7 @@ class BoardTests(unittest.TestCase):
         rows = [attrs for _, attrs in Elements(page).elements if 'data-id' in attrs]
         self.assertEqual([r['data-status'] for r in rows], ["", "Done", "Ready", "In Progress", "Blocked"])
         self.assertTrue(all('data-views' not in attrs for _, attrs in Elements(page).elements))
+        self.assertTrue(all(r.get('tabindex') == '-1' for r in rows))
         for rank in range(1, 6):
             self.assertIn(f'aria-label="Priority {rank}">{rank}</span>', page)
 

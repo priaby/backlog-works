@@ -155,8 +155,8 @@ SCRIPT = """
     const kind = button.dataset.move;
     move(row, kind);
     let toFocus = row.querySelector('[data-move="' + kind + '"]');
-    if (toFocus.disabled) toFocus = row.querySelector('[data-move]:not(:disabled)');
-    if (toFocus) toFocus.focus();
+    if (toFocus.disabled) toFocus = row.querySelector('[data-move]:not(:disabled)') || row;
+    toFocus.focus();
     row.scrollIntoView({block: 'nearest'});
   });
 

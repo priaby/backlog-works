@@ -55,7 +55,7 @@ def _card(rank: int, item: Item, *, is_first: bool, is_last: bool) -> str:
         waiting = f'<p class="waiting"><span class="pill">Waiting</span> {_inline(condition)}</p>'
     return (
         f'<div class="card-row" data-id="{html.escape(item.id)}" '
-        f'data-status="{html.escape(item.status)}" data-job="{html.escape(item.core_job)}">'
+        f'data-status="{html.escape(item.status)}" data-job="{html.escape(item.core_job)}" tabindex="-1">'
         f'<span class="rank" aria-label="Priority {rank}">{rank}</span>'
         f'<article class="card" id="{html.escape(item.id)}">'
         f'<h2 class="item-title"><span class="item-id">{_inline(item.id)}.</span> {_inline(item.title)}</h2>'

@@ -330,7 +330,7 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 | 2026-09-25 | Stdlib only, Python 3.12 image | supply-chain surface; deploy path proven | superseded 2026-09-26 (dependencies allowed with register) |
 | 2026-09-25 | SQLite on a Railway volume, per-block table ownership | one process, tiny write volume | multi-instance or multi-region |
 | 2026-09-25 | Single-tenant first, `repo` column everywhere | ship J709..004 without a rewrite | second customer repo |
-| 2026-09-25 | `demo` block with a fictitious packaged backlog | show the board before GitHub source and sign-in exist | first real tenant configured |
+| 2026-09-25 | `demo` block with a fictitious packaged backlog (superseded 2026-09-26 by the `local` block row below) | show the board before GitHub source and sign-in exist | first real tenant configured |
 | 2026-09-25 | Mandatory recording in the command transaction; observers post-commit and isolated | independent review finding 1: subscribers cannot be both isolated and required | never |
 | 2026-09-25 | `events` owns a generic outbox with private job payloads; `notify` is the delivery worker | review finding 2: magic-link mail cannot be built from a hashed event | a second delivery kind that needs its own worker |
 | 2026-09-25 | `operations` intent record around every GitHub write; uncertain outcomes surfaced, never retried blindly | review finding 1: GitHub and SQLite cannot share a transaction | never |
