@@ -46,7 +46,7 @@ h1 { font-size:clamp(26px,4vw,36px); line-height:1.15; letter-spacing:-.025em; m
 .waiting { margin:0 0 10px; font-size:13px; color:var(--muted); }
 .context { color:var(--muted); font-size:14px; margin:0; }
 code { background:#eef0f2; border-radius:3px; padding:0 3px; font-size:.92em; overflow-wrap:anywhere; }
-.problems { padding:16px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+.problems,.empty { padding:16px; border:1px solid var(--line); border-radius:8px; background:#fff; }
 .intro { border-bottom:1px solid var(--line); padding:0 0 20px; font-size:13px; color:var(--muted); }
 .intro h2 { color:var(--ink); font-size:16px; margin:0 0 6px; }
 .intro p { margin:6px 0; }
@@ -69,12 +69,16 @@ SCRIPT = """
   const board = document.getElementById('board');
   const buttons = [...board.querySelectorAll('[data-view]')];
   const rows = [...board.querySelectorAll('[data-views]')];
+  const empty = board.querySelector('#empty-state');
   let view = 'open';
 
   function render() {
+    let visible = 0;
     rows.forEach(row => {
       row.hidden = !row.dataset.views.split(' ').includes(view);
+      if (!row.hidden) visible++;
     });
+    empty.hidden = visible !== 0;
     buttons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
   }
 

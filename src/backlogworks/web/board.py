@@ -90,6 +90,7 @@ def render_board(backlog: Backlog, *, repo: str, subtitle: str = "",
 <div class="view-switch" role="group" aria-label="Show backlog view">{buttons}</div>
 <noscript><p>All entries are shown. Enable JavaScript to switch views.</p></noscript>
 <div id="cards">{cards}</div>
+<p id="empty-state" class="empty" hidden>Nothing in this view.</p>
 </section>
 </main>
 <footer>Rendered by backlog.works from a markdown file. Document order is priority order.</footer>

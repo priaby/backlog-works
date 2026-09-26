@@ -86,7 +86,7 @@ class BoardTests(unittest.TestCase):
     def test_filter_count_empty_state_and_bug_markup_are_absent(self):
         _, backlog = load_demo()
         page = render_board(backlog, repo="r")
-        for fragment in ('view-count', 'job-filter', 'id="search"', 'empty-state',
+        for fragment in ('view-count', 'job-filter', 'id="search"',
                          'bug-row', 'data-view="bugs"', 'data-view="sprint"',
                          'Reorder controls', 'repeat(6,'):
             self.assertNotIn(fragment, page)

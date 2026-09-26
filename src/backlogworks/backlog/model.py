@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Pavel Riaby. All rights reserved. See LICENSE.
 """Parse the backlog markdown into Items. Byte-preserving on the way back is
-PBI-001's job; this module only reads."""
+J709's job; this module only reads."""
 
 from __future__ import annotations
 
@@ -152,10 +152,12 @@ def parse_backlog(markdown: str) -> Backlog:
         table_bottom += 1
     for i in range(table_top, table_bottom):
         row = lines[i]
-        if ROW_ID_RE.match(row) or row.startswith("| Item (PBI) |"):
+        if ROW_ID_RE.match(row):
             continue
         if all(re.fullmatch(r":?-+:?", cell) for cell in _cells(row)):
             continue
+        if i + 1 < len(lines) and all(re.fullmatch(r":?-+:?", c) for c in _cells(lines[i + 1])):
+            continue  # the header row: any cell text directly above the separator
         problems.append(_row_problem(i + 1))
     items: list[Item] = []
     seen: set[str] = set()

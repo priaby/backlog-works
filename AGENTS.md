@@ -40,7 +40,7 @@ Load the skill whose trigger matches the task, once, at the start:
 | `backlog-works-report` | session start (takeover), any Product Owner report, session close handoff |
 | `backlog-works-backlog` | reading, editing, reordering, or changing status in `docs/product/backlog.md`; picking the next item |
 | `backlog-works-deploy` | deploying, verifying a release, checking Railway/domain status |
-| `backlog-works-extraction` | porting code from Crest for PBI-001 (Extract backlog source module), PBI-002 (Extract renderer/board) and their tests |
+| `backlog-works-extraction` | porting code from Crest for J709 (Extract backlog source module), U695 (Extract renderer/board) and their tests |
 | `backlog-works-secrets` | fetching `RAILWAY_PAT`, adding a Railway variable, documenting any credential |
 
 This file's directives win over any skill. A skill never authorises an
@@ -66,8 +66,8 @@ external action (deploy, push, vault write) on its own.
 These generalise from Crest's Product Owner directives and apply from an
 agent's first message in this repo, without being reminded:
 
-- **Name every PBI and bug in full.** Never a bare index; write the number
-  with its title, e.g. "PBI-002 (Extract renderer/board)" — look it up in
+- **Name every PBI in full.** Never a bare index; write the id
+  with its title, e.g. "U695 (Extract renderer/board)" — look it up in
   `docs/product/backlog.md`, don't guess. A table may use the number alone
   only when the title appears in the same row.
 - **One report per milestone, not per step.** No "waiting"/"still
@@ -159,9 +159,13 @@ agent's first message in this repo, without being reminded:
 ## The Backlog File
 
 `docs/product/backlog.md` is the product backlog in the product's own
-format: a markdown table whose rows begin `| PBI-<digits>` in the table's
+format: a markdown table whose rows begin `| <id>. ` in the table's
 active section, columns `Item (PBI)`, `Core Job`, `Context`, `Status`,
-`Driver`, plus a `## Bugs` section below it. Statuses (PO decision
+`Driver`. An item id (PO decision 2026-09-26) is one uppercase letter
+from `ABCDEFGHJKLMNPRSTUVWXYZ` plus three digits `100`-`999` (`K417`),
+random, unique within the file, assigned at creation, never reused;
+`scripts/new_id.py` mints one. No `PBI-` prefix, no type field (bugs
+are not a separate section; a type field is a later product decision). Statuses (PO decision
 2026-09-26, Scrum Guide grounded): empty = ordinary item; `Ready` = meets
 the Definition of Ready, selectable in Sprint Planning; `In Progress` =
 in the Sprint Backlog; `Done` = meets the Definition of Done, accepted.

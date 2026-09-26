@@ -9,7 +9,7 @@ related: ["product/backlog.md", "../AGENTS.md", "../scripts/check_architecture.p
 # backlog.works Architecture
 
 One page, kept current. It records the **as-is** (deployed) shape and the
-**next** shape (what PBI-001 to PBI-004 land in), as an **event-driven
+**next** shape (what J709 to F196 land in), as an **event-driven
 modular monolith**: one process, one image, one database file, a set of
 blocks that call *down* the dependency graph and talk *up and sideways only
 through events*. The whole product lives in that one monolith: the app,
@@ -64,13 +64,13 @@ what is deployed is evidenced separately in `docs/ops/`.
 |---|---|---|---|---|---|
 | `config` | every env var, read once into one frozen dataclass | | | `PORT` | `BASE_URL`, `GITHUB_*`, `GITHUB_WEBHOOK_SECRET`, `BACKLOG_PATH`, `SESSION_SECRET`, `DATABASE_PATH`, `MAILJET_API_KEY`, `MAILJET_API_SECRET`, `MAIL_FROM` |
 | `events` | `Event` envelope, `EventBus` (sync, in-process, registration-ordered, subscriber-isolated), audit sink; next: the append-only `events` table (timeline) and the generic `outbox` table with a transactional staging API and lease/ack API | `events.handler_failed` | | bus + stderr audit | timeline append, outbox staging and leasing |
-| `backlog` | file format as data: parse table, items; validate reorder and single-cell status change; emit new text; the `BacklogSource` port (Protocol, no I/O). **Pure, no internal imports.** | | | parse | reorder / status change, port (PBI-001) |
-| `github` | `BacklogSource` adapter: Contents API read (ETag cache) and commit (blob `sha` guard); `push` webhook receiver with signature check | `backlog.loaded`, `backlog.committed`, `backlog.commit_conflicted`, `backlog.file_changed` | `backlog.file_changed` (drop cache) | empty | PBI-001 |
-| `auth` | magic-link sign-in, PO session cookie, CSRF, per-repo API keys; owns its tables; stages the private mail job through the events outbox API in the same transaction as its state | `auth.signin_requested`, `auth.signed_in`, `auth.signed_out`, `auth.key_issued`, `auth.key_revoked`, `auth.key_used` | | empty | PBI-003, PBI-004 |
-| `notify` | delivery worker: leases mail jobs from the events outbox, sends via the Mailjet Send API (HTTPS), acks; retries with backoff and dead-letters; never called directly, never reads another block's tables | `notify.sent`, `notify.failed` | outbox jobs of kind `mail`; `backlog.item_status_changed` (stages a PO digest job) | empty | PBI-003 |
+| `backlog` | file format as data: parse table, items; validate reorder and single-cell status change; emit new text; the `BacklogSource` port (Protocol, no I/O). **Pure, no internal imports.** | | | parse | reorder / status change, port (J709) |
+| `github` | `BacklogSource` adapter: Contents API read (ETag cache) and commit (blob `sha` guard); `push` webhook receiver with signature check | `backlog.loaded`, `backlog.committed`, `backlog.commit_conflicted`, `backlog.file_changed` | `backlog.file_changed` (drop cache) | empty | J709 |
+| `auth` | magic-link sign-in, PO session cookie, CSRF, per-repo API keys; owns its tables; stages the private mail job through the events outbox API in the same transaction as its state | `auth.signin_requested`, `auth.signed_in`, `auth.signed_out`, `auth.key_issued`, `auth.key_revoked`, `auth.key_used` | | empty | N835, F196 |
+| `notify` | delivery worker: leases mail jobs from the events outbox, sends via the Mailjet Send API (HTTPS), acks; retries with backoff and dead-letters; never called directly, never reads another block's tables | `notify.sent`, `notify.failed` | outbox jobs of kind `mail`; `backlog.item_status_changed` (stages a PO digest job) | empty | N835 |
 | `demo` | fictitious tenant `demo/lighthouse` packaged with the image; a `BacklogSource` reading a packaged file | `backlog.loaded` (`sha` = content hash) | | served on `/` | stays as the public sample |
-| `landing` | pitch chrome only; `/` is the demo backlog rendered by the one board engine (`web.board`), never a second implementation | | | pitch above the demo board | PBI-006 (Brand and landing page) |
-| `docs` | product documentation at `/docs/*` from markdown packaged in the image | | | empty | first pages: file format and status legend (with PBI-001), API reference (with PBI-004) |
+| `landing` | pitch chrome only; `/` is the demo backlog rendered by the one board engine (`web.board`), never a second implementation | | | pitch above the demo board | G761 (Brand and landing page) |
+| `docs` | product documentation at `/docs/*` from markdown packaged in the image | | | empty | first pages: file format and status legend (with J709), API reference (with F196) |
 | `web` | routes, the single board engine (`board.py`), JSON endpoints, SSE, headers, CSRF check; the only place blocks meet | `backlog.reordered`, `backlog.item_status_changed` | `backlog.*` (SSE fan-out) | `/` (pitch + demo board), `/healthz`, `/demo` -> `/` | tenant boards, API, sign-in |
 | `__main__` | composition root: build bus, subscribe consumers, construct server, publish `service.started`, serve | `service.started` | | | |
 
@@ -281,8 +281,13 @@ No backlog content at rest. A restart loses only the in-memory read cache.
    humans and agents.
 8. **Tests are `unittest`, no sockets** (patch `urllib`), one directory per
    block, run by `scripts/check.sh`.
-9. **The format contract**: first contiguous `| PBI-` block, rows
-   `| PBI-<n>[a-z]. Title | Core Job | Context | Status[<br>note] | Driver |`.
+9. **The format contract**: first contiguous block of rows matching
+   `^\| [A-Z]\d{3}\. `, rows
+   `| <id>. Title | Core Job | Context | Status[<br>note] | Driver |`.
+   Id (PO decision 2026-09-26): one letter of `ABCDEFGHJKLMNPRSTUVWXYZ`
+   (I, O, Q excluded as digit look-alikes) plus three digits `100`-`999`,
+   random, unique within the file, minted by `backlog.new_item_id`, never
+   reused. No `PBI-` prefix; no type field and no `## Bugs` section yet.
    Statuses (PO decision 2026-09-26, Scrum Guide 2020 and ScrumPLoP
    "Definition of Ready"): empty cell = ordinary item; `Ready` = meets the
    Definition of Ready, "ready for selection in a Sprint Planning event";
@@ -293,7 +298,7 @@ No backlog content at rest. A restart loses only the in-memory read cache.
    checked by the same parser.
 10. **Reader and writer are different contracts.** `parse_backlog` is a
     tolerant reader for display (records problems, never raises on a
-    row). The write path (PBI-001) works on raw row byte slices with exact
+    row). The write path (J709) works on raw row byte slices with exact
     spans and line terminators preserved, refuses malformed, duplicate, or
     ambiguous rows before any mutation, moves untouched slices for a
     reorder, replaces only the status token for a status change, and
@@ -320,7 +325,7 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 | 2026-09-25 | Outbox pattern for mail | at-least-once without a queue service | second external effect type |
 | 2026-09-25 | Stdlib only, Python 3.12 image | supply-chain surface; deploy path proven | superseded 2026-09-26 (dependencies allowed with register) |
 | 2026-09-25 | SQLite on a Railway volume, per-block table ownership | one process, tiny write volume | multi-instance or multi-region |
-| 2026-09-25 | Single-tenant first, `repo` column everywhere | ship PBI-001..004 without a rewrite | second customer repo |
+| 2026-09-25 | Single-tenant first, `repo` column everywhere | ship J709..004 without a rewrite | second customer repo |
 | 2026-09-25 | `demo` block with a fictitious packaged backlog | show the board before GitHub source and sign-in exist | first real tenant configured |
 | 2026-09-25 | Mandatory recording in the command transaction; observers post-commit and isolated | independent review finding 1: subscribers cannot be both isolated and required | never |
 | 2026-09-25 | `events` owns a generic outbox with private job payloads; `notify` is the delivery worker | review finding 2: magic-link mail cannot be built from a hashed event | a second delivery kind that needs its own worker |
@@ -344,7 +349,7 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 - Bitwarden helper borrowed from Crest's checkout (see `backlog-works-secrets`
   skill); a repo-local helper is due when the second secret appears.
 - `events` has no persistence yet; the timeline, outbox, and operations
-  tables arrive with the first write path (PBI-001), not later.
+  tables arrive with the first write path (J709), not later.
 - Independent review 2026-09-25 (Codex gpt-6-astra, report retained under
   `artifacts/checks/arch-review-2026-09-25/`, summary in the handoff):
   findings 1-4 and 11-13 are resolved in this page; findings 5-9, 14 and

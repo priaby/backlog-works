@@ -1,6 +1,6 @@
 ---
 name: backlog-works-extraction
-description: Port backlog-board code from the Crest repository into backlog.works (PBI-001 Extract backlog source module, PBI-002 Extract renderer/board, and their tests). Use when reading Crest source as a porting reference.
+description: Port backlog-board code from the Crest repository into backlog.works (J709 Extract backlog source module, U695 Extract renderer/board, and their tests). Use when reading Crest source as a porting reference.
 ---
 
 # Porting from Crest
@@ -19,8 +19,8 @@ authoritative survey is Crest's
 | `scripts/test_crest_backlog_source.py` (393 lines) | portable, small changes | Patches `urllib.request.urlopen`; port the `backlog_source` cases, drop the Crest session fixtures. |
 | `src/crest/infrastructure/admin_content.py` (123 lines) | portable as technique | Inlines the markdown into the board HTML and patches one `fetch()` by exact string; needs our own board asset to patch. |
 | `scripts/test_crest_admin_content.py` (107 lines) | portable as-is | |
-| `docs/product/backlog-board.html` (1,148 lines) | portable, small changes | Markdown-table-to-cards logic is generic; strip Crest CSS/JS links and topbar; new unbranded design (PBI-006 Brand and landing page decides the look). |
-| `src/crest/api/admin.py` (362 lines), `crest_analytics_api.py` admin routes (~90 lines) | rewrite | Keep the HTTP shape (hidden 404, CSRF = HMAC of session token, Origin allow-list, reorder body validation, 409 on stale `base_sha`); replace every `access.*` call with this product's own session (PBI-003 Standalone sign-in) or API key (PBI-004 API key for agents). |
+| `docs/product/backlog-board.html` (1,148 lines) | portable, small changes | Markdown-table-to-cards logic is generic; strip Crest CSS/JS links and topbar; new unbranded design (G761 Brand and landing page decides the look). |
+| `src/crest/api/admin.py` (362 lines), `crest_analytics_api.py` admin routes (~90 lines) | rewrite | Keep the HTTP shape (hidden 404, CSRF = HMAC of session token, Origin allow-list, reorder body validation, 409 on stale `base_sha`); replace every `access.*` call with this product's own session (N835 Standalone sign-in) or API key (F196 API key for agents). |
 | `scripts/test_crest_admin.py`, `assets/crest-email-code-challenge.*`, `scripts/check-crest-architecture.py` | spec only | Read for required behaviour; do not lift code. |
 
 ## Where ported code lands

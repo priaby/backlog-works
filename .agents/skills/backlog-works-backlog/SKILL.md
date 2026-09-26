@@ -7,20 +7,24 @@ description: Read, edit, reorder, or change the status of items in docs/product/
 
 `docs/product/backlog.md` is both this repo's Scrum backlog and the first
 fixture of the product itself: whatever this file looks like is what the
-board renderer and write path (PBI-001 Extract backlog source module,
-PBI-002 Extract renderer/board) must parse. Keep it machine-clean.
+board renderer and write path (J709 Extract backlog source module,
+U695 Extract renderer/board) must parse. Keep it machine-clean.
 
 Run `python3 scripts/check_backlog.py` after every edit; `scripts/check.sh`
 runs it too.
 
 ## Format contract (inherited from Crest `backlog_source.py`)
 
-- Active table = the **first contiguous run** of lines starting with the
-  four characters `| PBI-`. Nothing else locates it, so never put a
-  `| PBI-` row anywhere above or in a second block.
-- Row shape: `| PBI-<digits>[a-z]. <Title> | <Core Job> | <Context> | <Status> | <Driver> |`
-  (id, optional one-letter sub-slice, a literal period, then the title).
-  Exactly 5 cells per row, same as the header.
+- Active table = the **first contiguous run** of lines matching
+  `| <Letter><3 digits>. ` (regex `^\| [A-Z]\d{3}\. `). Nothing else
+  locates it, so never put such a row anywhere above or in a second block.
+- Row shape: `| <id>. <Title> | <Core Job> | <Context> | <Status> | <Driver> |`
+  (id, a literal period, then the title). Exactly 5 cells per row, same
+  as the header.
+- Id (PO decision 2026-09-26): one uppercase letter from
+  `ABCDEFGHJKLMNPRSTUVWXYZ` plus three digits `100`-`999`, e.g. `K417`;
+  random, unique within the file, never reused. Mint with
+  `python3 scripts/new_id.py`. No `PBI-` prefix, no sub-slice suffix.
 - Status = the text in cell 4 before the first `<br>`; anything after
   `<br>` is free text (sprint tag, note) that must survive reorders
   byte-for-byte.
@@ -34,8 +38,8 @@ runs it too.
   by hand: same id set, same per-row cell count, row content unchanged
   when only ordering; first-row move is refused unless some row is
   `In Progress`.
-- `## Bugs` sits below the table. Bug ids are `BUG-YYYY-MM-DD-slug`; keep
-  each entry short (surface, steps, expected, actual, evidence, status).
+- No `## Bugs` section and no type field: a bug is an ordinary row until
+  the Product Owner adds a type field (later product decision).
 - Bump `updated:` in the frontmatter on every edit.
 
 ## Who may change what
@@ -52,6 +56,6 @@ runs it too.
 
 ## Naming rule
 
-Every mention of an item, anywhere in a report or doc, is number plus title:
-"PBI-002 (Extract renderer/board)". Look the title up in the file; scan the
-message for bare `PBI-`/`BUG-` tokens before sending.
+Every mention of an item, anywhere in a report or doc, is id plus title:
+"U695 (Extract renderer/board)". Look the title up in the file; scan the
+message for bare `<Letter><3 digits>` tokens before sending.
