@@ -28,6 +28,11 @@ class RouteTests(unittest.TestCase):
         self.assertIn('id="board"', page)
         self.assertLess(page.index(pitch_html()), page.index('id="board"'))
         self.assertIn('href="/backlog.md"', page)
+        self.assertIn('id="U611"', page)
+        self.assertNotIn('PBI-', page)
+        self.assertEqual(page.count(' data-view="'), 4)
+        for removed in ('view-count', 'job-filter', 'empty-state', 'bug-row', '<details'):
+            self.assertNotIn(removed, page)
 
     def test_response_headers_and_head_without_sockets(self):
         handler = Handler.__new__(Handler)

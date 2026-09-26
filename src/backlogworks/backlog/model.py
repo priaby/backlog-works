@@ -5,10 +5,13 @@ PBI-001's job; this module only reads."""
 from __future__ import annotations
 
 import re
+import secrets
+from collections.abc import Collection
 from dataclasses import dataclass, field
 
-ROW_ID_RE = re.compile(r"^\| (PBI-\d+[a-z]?)\. ")
-ROW_PREFIX = "| PBI-"
+ROW_ID_RE = re.compile(r"^\| ([A-Z]\d{3})\. ")
+ID_ALPHABET = "ABCDEFGHJKLMNPRSTUVWXYZ"
+ITEM_ID_RE = re.compile(rf"[{ID_ALPHABET}][1-9][0-9]{{2}}")
 EXPECTED_CELLS = 5
 # Product Owner decision 2026-09-26, grounded in the Scrum Guide 2020 and
 # the ScrumPLoP "Definition of Ready" pattern: an ordinary item has no
@@ -54,12 +57,6 @@ class Item:
 
 
 @dataclass(frozen=True)
-class Bug:
-    id: str
-    text: str
-
-
-@dataclass(frozen=True)
 class Backlog:
     title: str
     updated: str
@@ -68,7 +65,6 @@ class Backlog:
     table_end: int  # 0-based index one past the last row line
     problems: tuple[str, ...] = field(default_factory=tuple)
     description: str = ""
-    bugs: tuple[Bug, ...] = field(default_factory=tuple)
 
     @property
     def ids(self) -> tuple[str, ...]:
@@ -84,11 +80,11 @@ def _cells(row: str) -> list[str]:
 
 
 def table_block(lines: list[str]) -> tuple[int, int]:
-    start = next((i for i, l in enumerate(lines) if l.startswith(ROW_PREFIX)), -1)
+    start = next((i for i, l in enumerate(lines) if ROW_ID_RE.match(l)), -1)
     if start < 0:
         return -1, -1
     end = start
-    while end < len(lines) and lines[end].startswith(ROW_PREFIX):
+    while end < len(lines) and ROW_ID_RE.match(lines[end]):
         end += 1
     return start, end
 
@@ -124,47 +120,17 @@ def _description(lines: list[str]) -> str:
     return " ".join(paragraph)
 
 
-def parse_bugs(markdown: str) -> tuple[Bug, ...]:
-    """Read bug bullets and indented continuations only within ## Bugs."""
-    bugs: list[Bug] = []
-    active = False
-    current_id = ""
-    parts: list[str] = []
-    fence = ""
+def new_item_id(existing: Collection[str], *, rng=secrets) -> str:
+    """Choose an unused id; rng supplies choice(sequence) and randbelow(limit)."""
+    for _ in range(1000):
+        item_id = rng.choice(ID_ALPHABET) + str(100 + rng.randbelow(900))
+        if item_id not in existing:
+            return item_id
+    raise FormatError("could not generate an unused item id after 1000 tries")
 
-    def finish() -> None:
-        if current_id:
-            bugs.append(Bug(current_id, " ".join(parts)))
 
-    for line in markdown.splitlines():
-        stripped = line.strip()
-        if stripped.startswith(("```", "~~~")):
-            if not fence:
-                fence = stripped[:3]
-            elif stripped.startswith(fence):
-                fence = ""
-            continue
-        if fence:
-            continue
-        if re.match(r"^#{1,2}\s", line):
-            if active:
-                break
-            active = stripped == "## Bugs"
-            continue
-        if not active:
-            continue
-        match = re.match(r"^- \*\*(BUG-[^*\s]+)\*\*\s*(.*)$", line)
-        if match:
-            finish()
-            current_id, first = match.groups()
-            parts = [first] if first else []
-        elif current_id and line.startswith(("  ", "\t")) and stripped:
-            parts.append(stripped)
-        elif stripped:
-            finish()
-            current_id, parts = "", []
-    finish()
-    return tuple(bugs)
+def _row_problem(line: int) -> str:
+    return f"line {line}: row does not start with `| <Letter><3 digits>. `"
 
 
 def parse_backlog(markdown: str) -> Backlog:
@@ -174,34 +140,48 @@ def parse_backlog(markdown: str) -> Backlog:
     lines = markdown.splitlines()
     start, end = table_block(lines)
     if start < 0:
-        raise FormatError("no `| PBI-` table found")
+        raise FormatError("no item table found")
     fm = _frontmatter(lines)
     problems: list[str] = []
+    # Locate strictly by regex, but diagnose malformed adjacent table rows too.
+    # They must not silently disappear when they break the active run.
+    table_top, table_bottom = start, end
+    while table_top > 0 and lines[table_top - 1].startswith("|"):
+        table_top -= 1
+    while table_bottom < len(lines) and lines[table_bottom].startswith("|"):
+        table_bottom += 1
+    for i in range(table_top, table_bottom):
+        row = lines[i]
+        if ROW_ID_RE.match(row) or row.startswith("| Item (PBI) |"):
+            continue
+        if all(re.fullmatch(r":?-+:?", cell) for cell in _cells(row)):
+            continue
+        problems.append(_row_problem(i + 1))
     items: list[Item] = []
     seen: set[str] = set()
     for i in range(start, end):
         row = lines[i]
         m = ROW_ID_RE.match(row)
-        if not m:
-            problems.append(f"line {i + 1}: row does not start with `| PBI-<n>. `")
+        if not m or not ITEM_ID_RE.fullmatch(m.group(1)):
+            problems.append(_row_problem(i + 1))
             continue
         cells = _cells(row)
         if len(cells) != EXPECTED_CELLS:
             problems.append(f"line {i + 1}: {m.group(1)} has {len(cells)} cells, expected {EXPECTED_CELLS}")
             cells = (cells + [""] * EXPECTED_CELLS)[:EXPECTED_CELLS]
-        pbi_id = m.group(1)
-        if pbi_id in seen:
-            problems.append(f"line {i + 1}: duplicate id {pbi_id}")
-        seen.add(pbi_id)
-        title = cells[0][len(pbi_id) + 1 :].strip()
+        item_id = m.group(1)
+        if item_id in seen:
+            problems.append(f"line {i + 1}: duplicate id {item_id}")
+        seen.add(item_id)
+        title = cells[0][len(item_id) + 1 :].strip()
         status_cell = cells[3]
         status, _, note = status_cell.partition("<br>")
-        item = Item(pbi_id, title, cells[1], cells[2], status.strip(), note.strip(), cells[4], i + 1)
+        item = Item(item_id, title, cells[1], cells[2], status.strip(), note.strip(), cells[4], i + 1)
         if not item.status_known:
-            problems.append(f"line {i + 1}: {pbi_id} status {item.status!r} not in legend")
+            problems.append(f"line {i + 1}: {item_id} status {item.status!r} not in legend")
         items.append(item)
-    if any(l.startswith(ROW_PREFIX) for l in lines[end:]):
-        problems.append("a second `| PBI-` block exists after the active table")
+    if any(ROW_ID_RE.match(l) for l in lines[end:]):
+        problems.append("a second item block exists after the active table")
     title = fm.get("title") or next((l[2:].strip() for l in lines if l.startswith("# ")), "Product Backlog")
     return Backlog(title, fm.get("updated", ""), tuple(items), start, end,
-                   tuple(problems), _description(lines), parse_bugs(markdown))
+                   tuple(problems), _description(lines))

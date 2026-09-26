@@ -6,7 +6,7 @@ from dataclasses import replace
 from html.parser import HTMLParser
 from unittest.mock import patch
 
-from backlogworks.backlog import Bug, parse_backlog
+from backlogworks.backlog import parse_backlog
 from backlogworks.demo import load_demo
 from backlogworks.demo import source
 from backlogworks.events import Event, EventBus
@@ -33,12 +33,12 @@ class BoardTests(unittest.TestCase):
         positions = [page.index(f'id="{i}"') for i in backlog.ids]
         self.assertEqual(positions, sorted(positions))
         ids = [attrs['id'] for tag, attrs in Elements(page).elements if tag == 'article']
-        self.assertEqual(ids, list(backlog.ids) + [bug.id for bug in backlog.bugs])
+        self.assertEqual(ids, list(backlog.ids))
         self.assertEqual(len(seen), 1)
         self.assertEqual(seen[0].payload["items"], len(backlog.items))
 
     def test_demo_event_hashes_exact_file_bytes(self):
-        content = (b"# Example\r\n| PBI-001. Example | Job | Context | Ready | Team |\r\n")
+        content = (b"# Example\r\n| K417. Example | Job | Context | Ready | Team |\r\n")
         bus = EventBus()
         seen = []
         bus.subscribe("backlog.loaded", seen.append)
@@ -53,47 +53,55 @@ class BoardTests(unittest.TestCase):
         self.assertEqual(seen[0].repo, source.DEMO_REPO)
 
     def test_html_is_escaped(self):
-        md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| PBI-001. <b>x</b> | j | c | Ready | T |\n"
+        md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| K417. <b>x</b> | j | c | Ready | T |\n"
         page = render_board(parse_backlog(md), repo="r")
         self.assertIn("&lt;b&gt;x&lt;/b&gt;", page)
         self.assertNotIn("<b>x</b>", page)
 
     def test_view_membership_and_rank_follow_document_order(self):
-        md = "\n".join(f"| PBI-{i:03}. Item {i} | job | context | {status} | Team |"
+        md = "\n".join(f"| K{100+i}. Item {i} | job | context | {status} | Team |"
                        for i, status in enumerate(("", "Done", "Ready", "In Progress", "Unknown"), 1))
         page = render_board(parse_backlog(md), repo="r")
         rows = [attrs for _, attrs in Elements(page).elements if 'data-views' in attrs]
         self.assertEqual([r['data-views'].split() for r in rows],
                          [['all', 'open'], ['all', 'done'], ['all', 'open', 'ready'],
-                          ['all', 'open', 'sprint'], ['all', 'open']])
+                          ['all', 'open'], ['all', 'open']])
         self.assertEqual([r['data-status'] for r in rows], ["", "Done", "Ready", "In Progress", "Unknown"])
         for rank in range(1, 6):
             self.assertIn(f'aria-label="Priority {rank}">{rank}</span>', page)
 
-    def test_filter_options_preserve_first_seen_order_and_all_view_fallback(self):
-        md = "\n".join(f"| PBI-{i:03}. Title | {job} | context | Ready | Team |"
-                       for i, job in enumerate(('Zebra', 'all', 'Zebra', '', 'Alpha'), 1))
-        page = render_board(parse_backlog(md), repo="r", board_path="/tenant/sample/")
-        expected = '<option value="all">All core jobs</option><option value="0">Zebra</option>'
-        expected += '<option value="1">all</option><option value="2"></option><option value="3">Alpha</option>'
-        self.assertIn(expected, page)
+    def test_four_views_and_all_view_fallback(self):
+        _, backlog = load_demo()
+        page = render_board(backlog, repo="r", board_path="/tenant/sample/")
         self.assertIn('href="/tenant/sample/backlog.md"', page)
         buttons = [a for t, a in Elements(page).elements if t == 'button']
-        self.assertEqual([b['data-view'] for b in buttons], ['open', 'sprint', 'ready', 'done', 'bugs', 'all'])
+        self.assertEqual([b['data-view'] for b in buttons], ['open', 'ready', 'done', 'all'])
         self.assertEqual([b['data-view'] for b in buttons if b['aria-pressed'] == 'true'], ['all'])
         self.assertTrue(all('disabled' in b for b in buttons))
         rows = [a for _, a in Elements(page).elements if 'data-views' in a]
         self.assertTrue(all('hidden' not in row for row in rows))
+        self.assertIn('All entries are shown. Enable JavaScript to switch views.', page)
+        self.assertIn("let view = 'open'", page)
 
-    def test_masthead_chips_waiting_bugs_and_only_code_markup(self):
+    def test_filter_count_empty_state_and_bug_markup_are_absent(self):
+        _, backlog = load_demo()
+        page = render_board(backlog, repo="r")
+        for fragment in ('view-count', 'job-filter', 'id="search"', 'empty-state',
+                         'bug-row', 'data-view="bugs"', 'data-view="sprint"',
+                         'Reorder controls', 'repeat(6,'):
+            self.assertNotIn(fragment, page)
+        elements = Elements(page).elements
+        self.assertFalse(any(tag in ('details', 'select', 'input') for tag, _ in elements))
+        self.assertEqual(sum(tag == 'button' for tag, _ in elements), 4)
+        self.assertIn('repeat(4,minmax', page)
+
+    def test_masthead_chips_waiting_and_only_code_markup(self):
         md = '# Title\n\nDescription `code`.\n\n'
-        md += '| PBI-001. Title | Job | **literal** [link](url) `code` | Ready<br>Waiting on: review<br>Sprint: S4 | Team |\n'
-        md += '\n## Bugs\n- **BUG-one** Broken `thing`\n'
+        md += '| K417. Title | Job | **literal** [link](url) `code` | Ready<br>Waiting on: review<br>Sprint: S4 | Team |\n'
         page = render_board(parse_backlog(md), repo="tenant")
         for fragment in ('class="eyebrow">tenant', '<h1>Title</h1>',
                          'Description <code>code</code>.', 'Source updated n/a',
                          'class="chip sprint">S4', 'class="pill">Waiting</span> review',
-                         'data-views="bugs all"', 'Broken <code>thing</code>',
                          '**literal** [link](url) <code>code</code>'):
             self.assertIn(fragment, page)
 
@@ -103,7 +111,7 @@ class BoardTests(unittest.TestCase):
         item = replace(backlog.items[0], title=payload, core_job=payload, context=payload,
                        status=payload, status_note='Waiting on: ' + payload, driver=payload)
         backlog = replace(backlog, title=payload, updated=payload, description=payload,
-                          items=(item,), bugs=(Bug('BUG-"<bad>', payload),), problems=(payload,))
+                          items=(item,), problems=(payload,))
         page = render_board(backlog, repo=payload, subtitle=payload)
         self.assertNotIn(payload, page)
         self.assertIn(html.escape(payload), page)
@@ -118,7 +126,7 @@ class BoardTests(unittest.TestCase):
     def test_ordinary_item_has_no_pill_and_demo_redirects(self):
         from backlogworks.config import Config
         from backlogworks.web.server import App
-        md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| PBI-001. x | j | c |  | T |\n"
+        md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| K417. x | j | c |  | T |\n"
         page = render_board(parse_backlog(md), repo="r")
         self.assertNotIn('class="pill', page)
         resp = App(Config(), EventBus()).dispatch("/demo")

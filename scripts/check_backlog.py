@@ -2,9 +2,8 @@
 """Format checker for a backlog markdown file (default docs/product/backlog.md).
 
 Thin wrapper over backlogworks.backlog.parse_backlog so the repo's own
-backlog is validated by the same code the product ships. Adds two
-repo-process checks the product is agnostic to: a `## Bugs` section must
-exist and the frontmatter `updated:` must be an ISO date.
+backlog is validated by the same code the product ships. Adds a
+repo-process check: the frontmatter `updated:` must be an ISO date.
 Exit 0 clean, 1 violations, 2 usage.
 """
 
@@ -36,13 +35,11 @@ def main(argv: list[str]) -> int:
     problems = list(backlog.problems)
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", backlog.updated):
         problems.append("frontmatter: missing or non-ISO `updated:` date")
-    if not any(l.strip() == "## Bugs" for l in text.splitlines()[backlog.table_end:]):
-        problems.append("`## Bugs` section missing below the table")
     for p in problems:
         print(f"FAIL {path}: {p}")
     if problems:
         return 1
-    print(f"ok {path}: {len(backlog.items)} PBI rows, format valid")
+    print(f"ok {path}: {len(backlog.items)} item rows, format valid")
     return 0
 
 

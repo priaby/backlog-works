@@ -6,13 +6,13 @@ from __future__ import annotations
 import html
 import re
 
-from backlogworks.backlog import Backlog, Bug, Item
+from backlogworks.backlog import Backlog, Item
 from backlogworks.web.board_assets import CSS, SCRIPT
 
 _CODE_RE = re.compile(r"`([^`]+)`")
 _SPRINT_RE = re.compile(r"\bSprint:\s*([^,;\n]+)")
 STATUS_CLASS = {"Ready": "s-ready", "In Progress": "s-progress", "Done": "s-done"}
-VIEWS = ("Open", "Sprint", "Ready", "Done", "Bugs", "All")
+VIEWS = ("Open", "Ready", "Done", "All")
 
 
 def _inline(text: str) -> str:
@@ -24,8 +24,8 @@ def _card(rank: int, item: Item) -> str:
     views = ["all"]
     if item.status != "Done":
         views.append("open")
-    if item.status in STATUS_CLASS:
-        views.append({"Ready": "ready", "In Progress": "sprint", "Done": "done"}[item.status])
+    if item.status in ("Ready", "Done"):
+        views.append(item.status.lower())
     pill = (f'<span class="pill {STATUS_CLASS.get(item.status, "s-unknown")}">'
             f'{_inline(item.status)}</span>') if item.status else ""
     notes = item.status_note.replace("<br>", "\n")
@@ -43,17 +43,7 @@ def _card(rank: int, item: Item) -> str:
         f'<h2 class="item-title"><span class="item-id">{_inline(item.id)}.</span> {_inline(item.title)}</h2>'
         f'<div class="meta">{pill}<span class="chip">{_inline(item.core_job)}</span>{sprint_chip}</div>'
         f'{waiting}<p class="context">{_inline(item.context)}</p>'
-        '<!-- Reorder controls belong here when the write path is available. -->'
         '</article></div>'
-    )
-
-
-def _bug_card(bug: Bug) -> str:
-    return (
-        '<div class="card-row bug-row" data-views="bugs all" data-job="">'
-        f'<article class="card" id="{html.escape(bug.id)}">'
-        f'<h2 class="item-title item-id">{_inline(bug.id)}</h2>'
-        f'<p class="context">{_inline(bug.text)}</p></article></div>'
     )
 
 
@@ -65,23 +55,16 @@ def render_board(backlog: Backlog, *, repo: str, subtitle: str = "",
     lives at <board_path>/backlog.md. No JS is needed to read the All view.
     """
     cards = "\n".join(_card(i + 1, item) for i, item in enumerate(backlog.items))
-    bugs = "\n".join(_bug_card(bug) for bug in backlog.bugs)
     buttons = "\n".join(
         f'<button type="button" data-view="{view.lower()}" '
         f'aria-pressed="{str(view == "All").lower()}" disabled>{view}</button>'
         for view in VIEWS
     )
-    # Numeric values keep the all-jobs sentinel distinct from every source value,
-    # including an empty Core Job or a literal "all".
-    jobs = dict.fromkeys(item.core_job for item in backlog.items)
-    options = "".join(f'<option value="{i}">{html.escape(job)}</option>'
-                      for i, job in enumerate(jobs))
     problems = ""
     if backlog.problems:
         notes = "".join(f"<li>{_inline(p)}</li>" for p in backlog.problems)
         problems = f'<aside class="problems"><strong>Format notes</strong><ul>{notes}</ul></aside>'
     source = html.escape("/" + board_path.strip("/") + "/backlog.md" if board_path.strip("/") else "/backlog.md")
-    total = len(backlog.items) + len(backlog.bugs)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -105,17 +88,8 @@ def render_board(backlog: Backlog, *, repo: str, subtitle: str = "",
 </header>
 {problems}
 <div class="view-switch" role="group" aria-label="Show backlog view">{buttons}</div>
-<p id="view-count" class="count" role="status" aria-live="polite">All · {total} entries</p>
-<details class="filters">
-<summary>Filter</summary>
-<div class="filter-fields">
-<label>Core Job<select id="job-filter" disabled><option value="all">All core jobs</option>{options}</select></label>
-<label>Search<input id="search" type="search" placeholder="Search id or title" disabled></label>
-</div>
-</details>
-<noscript><p class="count">All entries are shown. Enable JavaScript to switch views and filter.</p></noscript>
-<div id="cards">{cards}{bugs}</div>
-<p id="empty-state" class="empty" hidden>No matching items.</p>
+<noscript><p>All entries are shown. Enable JavaScript to switch views.</p></noscript>
+<div id="cards">{cards}</div>
 </section>
 </main>
 <footer>Rendered by backlog.works from a markdown file. Document order is priority order.</footer>
