@@ -201,7 +201,7 @@ footer {
 .bw-segmented__option {
   min-height: var(--bw-hit); min-width: 0; border-radius: var(--bw-radius-pill); font-size: var(--bw-text-xs);
   font-weight: var(--bw-weight-strong); color: var(--bw-ink-2); background: transparent;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 var(--bw-space-1);
   transition: background-color var(--bw-duration-fast) var(--bw-ease-out), color var(--bw-duration-fast) var(--bw-ease-out);
 }
 .bw-segmented__option[disabled]:not([aria-pressed="true"]),
