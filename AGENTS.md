@@ -23,7 +23,7 @@ brand assets, provider logos) unless this product actually needs them.
   as any structural change.
 - `src/backlogworks/` — the deployed service, one package with the blocks
   listed in `docs/architecture.md` section 2 (`config`, `events`,
-  `backlog`, `github`, `auth`, `notify`, `demo`, `landing`, `docs`, `web`).
+  `backlog`, `github`, `auth`, `notify`, `local`, `landing`, `docs`, `web`).
   `tests/<block>/` — unittest per block. `Dockerfile`, `railway.json` —
   build and deploy config.
 - `scripts/check.sh` — the repo gate (run before every commit and handoff);
