@@ -11,10 +11,9 @@ related: ["docs/ops/handoff-2026-09-25.md"]
 # backlog.works Product Backlog
 
 Document order is priority order. The Product Owner orders this table and
-selects `Ready` items into a Sprint (`In Progress`); the team works the
-highest `In Progress` row first and reports it for acceptance, or parks it
-with `Waiting on: <condition>` in its Status cell. This file is also what
-`https://backlog.works` renders: the product's first tenant is itself.
+selects items into the Sprint; the team works the highest `In Progress`
+row first. This file is what `https://backlog.works` renders: the
+product's first tenant is itself.
 
 > [!info] Status legend (Product Owner decision 2026-09-26)
 > An ordinary item has an empty Status cell. Three statuses exist:
@@ -34,8 +33,8 @@ with `Waiting on: <condition>` in its Status cell. This file is also what
 
 | Item (PBI) | Core Job | Context | Status | Driver |
 |---|---|---|---|---|
-| U695. Board on the phone: status views, reorder controls, design foundations | Read and reorder the backlog on a phone without opening the markdown | One board engine for every tenant and the landing. View selector follows the status vocabulary (custom statuses appear automatically), cards carry up / down / top controls, a design system (tokens, primitives, vibrant hover states; Crest structure, Fizzy-grade colour) so no component is invented twice. Order changes preview locally until J709 (Persist backlog changes to the repo) lands. | In Progress<br>Sprint: S1 | Team |
-| J709. Persist backlog changes to the repo | Move a card from a phone and have the file in the repo change in the same commit | `BacklogSource` over the GitHub Contents API: read with ETag cache, validated reorder and single-cell status change on raw row slices (same id multiset, same cell counts, nothing else changes), commit with blob `sha` guard, push webhook drops the cache. Ports Crest's `backlog_source.py` behind config. |  | Team |
+| U695. Board on the phone: status views, reorder controls, design foundations | Read and reorder the backlog on a phone without opening the markdown | One board engine for every tenant and the landing: segmented view selector, up / down / top controls, a design system so no component is invented twice. Order changes preview locally until J709 (Persist backlog changes to the repo) lands. | In Progress<br>Sprint: S1 | Team |
+| J709. Persist backlog changes to the repo | Move a card from a phone and have the file in the repo change in the same commit | `BacklogSource` over the GitHub Contents API: ETag-cached read, validated reorder and status change on raw row slices (same ids, same cell counts, nothing else changes), commit guarded by the blob `sha`, push webhook drops the cache. |  | Team |
 | N835. Product Owner sign-in (magic-link email) | Sign in from a phone with no password and no Crest account | Magic link via the Mailjet sub-account (`MAIL_FROM=noreply@backlog.works`), session cookie, CSRF, sign-out. Waiting on the three Mailjet TXT records in Railway DNS before mail can send. |  | Team |
 | F196. API key for agents | Let an agentic team read and write the backlog without a human session | Per-repo API key; the same write-path validation as the web reorder path; key ids in the timeline, never key values. |  | Team |
 | R685. Configurable statuses per backlog | Use the team's own workflow words without asking the vendor | The legend block in the markdown declares the vocabulary and its order; parser, checker, selector and pills follow it; the default stays the four Scrum-grounded states. |  | Team |
