@@ -2,7 +2,7 @@
 import unittest
 from pathlib import Path
 
-from backlogworks.backlog import FormatError, parse_backlog
+from backlogworks.backlog import Bug, FormatError, parse_backlog, parse_bugs
 
 DEMO = Path(__file__).resolve().parents[2] / "src/backlogworks/demo/backlog.md"
 REPO_BACKLOG = Path(__file__).resolve().parents[2] / "docs/product/backlog.md"
@@ -23,6 +23,38 @@ updated: 2026-09-25
 
 
 class ParseTests(unittest.TestCase):
+    def test_description_is_first_paragraph_after_h1(self):
+        md = MINIMAL.replace("# T\n", "# T\n\nFirst `line` with <html>.\nSecond line.\n\nIgnored.\n")
+        self.assertEqual(parse_backlog(md).description, "First `line` with <html>. Second line.")
+
+    def test_description_missing_does_not_swallow_blocks(self):
+        for md in (MINIMAL, MINIMAL.replace("# T", ""),
+                   MINIMAL.replace("# T", "# T\n\n## Section\nNot description.")):
+            self.assertEqual(parse_backlog(md).description, "")
+
+    def test_bugs_and_continuations_are_scoped_to_section(self):
+        md = MINIMAL + """
+- **BUG-one** First `issue` <html>.
+  Continued on another line.
+
+  Another paragraph.
+- Unrelated bullet.
+  Must not attach to the previous bug.
+- **BUG-two** Second issue.
+## Later
+- **BUG-outside** Not a bug in this section.
+"""
+        self.assertEqual(parse_backlog(md).bugs, (
+            Bug("BUG-one", "First `issue` <html>. Continued on another line. Another paragraph."),
+            Bug("BUG-two", "Second issue."),
+        ))
+
+    def test_empty_missing_and_fenced_bug_examples(self):
+        for md in ("", "## Bugs\n(none yet)", "- **BUG-outside** Ignored"):
+            self.assertEqual(parse_bugs(md), ())
+        md = "## Bugs\n```markdown\n- **BUG-example** Ignore\n```\n- **BUG-real** Keep"
+        self.assertEqual(parse_bugs(md), (Bug("BUG-real", "Keep"),))
+
     def test_minimal(self):
         b = parse_backlog(MINIMAL)
         self.assertEqual(b.title, "T")

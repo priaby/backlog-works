@@ -1,90 +1,87 @@
 # Copyright (c) 2026 Pavel Riaby. All rights reserved. See LICENSE.
-"""Server-rendered, phone-first board. No JavaScript needed to read it."""
+"""One server-rendered board for any parsed backlog, enhanced locally by JS."""
 
 from __future__ import annotations
 
 import html
 import re
 
-from backlogworks.backlog import STATUSES, Backlog, Item
+from backlogworks.backlog import Backlog, Bug, Item
+from backlogworks.web.board_assets import CSS, SCRIPT
 
 _CODE_RE = re.compile(r"`([^`]+)`")
-_PBI_RE = re.compile(r"\b(PBI-\d+[a-z]?)\b")
-
-STATUS_CLASS = {
-    "Ready": "s-ready",
-    "In Progress": "s-progress",
-    "Done": "s-done",
-}
-
-CSS = """
-  :root { --ink:#1d1d1f; --muted:#6e6e73; --line:#e5e5ea; --bg:#f5f5f7; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); }
-  header { position: sticky; top:0; background:#fff; border-bottom:1px solid var(--line); padding:.8em 1em; }
-  header h1 { font-size:1.05em; margin:0; }
-  header small { color: var(--muted); }
-  main { max-width: 42em; margin: 0 auto; padding: .8em; }
-  .card { background:#fff; border:1px solid var(--line); border-radius:.9em; padding:.9em 1em; margin:.6em 0; }
-  .card .top { display:flex; justify-content:space-between; gap:.6em; align-items:baseline; }
-  .id { font-variant-numeric: tabular-nums; color: var(--muted); font-size:.85em; }
-  .title { font-weight:600; margin:.1em 0 .3em; }
-  .job { color:#333; margin:0 0 .4em; }
-  .ctx { color: var(--muted); font-size:.9em; margin:0; }
-  .meta { display:flex; flex-wrap:wrap; gap:.4em; margin-top:.6em; align-items:center; font-size:.8em; }
-  .pill { border-radius:999px; padding:.15em .6em; font-weight:600; white-space:nowrap; }
-  .s-ready{background:#e8f0fe;color:#1a4fbf} .s-progress{background:#e6f4ea;color:#1e7b3a}
-  .s-done{background:#d9f2e0;color:#0f5a2b} .s-waiting{background:#fde8e8;color:#a12a2a}
-  .s-unknown{background:#fde8e8;color:#a12a2a;outline:1px dashed #a12a2a}
-  .intro { background:#fff; border:1px solid var(--line); border-radius:.9em; padding:1em 1.1em; margin:.6em 0 1em; }
-  .intro h2 { margin:0 0 .3em; font-size:1.1em; } .intro p { margin:.3em 0; color:#333; } .intro ul { margin:.3em 0 0 1.1em; padding:0; color:#333; }
-  .note { color: var(--muted); }
-  .rank { color: var(--muted); font-size:.8em; }
-  .problems { background:#fff4e5; border:1px solid #f5d29c; border-radius:.6em; padding:.6em .9em; font-size:.85em; }
-  code { background: var(--bg); padding:0 .25em; border-radius:.3em; font-size:.92em; }
-  footer { color: var(--muted); font-size:.8em; text-align:center; padding:1.5em; }
-  .card.done { opacity:.7; }
-"""
+_SPRINT_RE = re.compile(r"\bSprint:\s*([^,;\n]+)")
+STATUS_CLASS = {"Ready": "s-ready", "In Progress": "s-progress", "Done": "s-done"}
+VIEWS = ("Open", "Sprint", "Ready", "Done", "Bugs", "All")
 
 
 def _inline(text: str) -> str:
-    out = html.escape(text)
-    out = _CODE_RE.sub(r"<code>\1</code>", out)
-    return out
+    """Escape first; backtick code spans are the only supported markup."""
+    return _CODE_RE.sub(r"<code>\1</code>", html.escape(text))
 
 
 def _card(rank: int, item: Item) -> str:
-    extra = " done" if item.status == "Done" else ""
-    if item.status == "":
-        pill = ""
-    else:
-        pill = f'<span class="pill {STATUS_CLASS.get(item.status, "s-unknown")}">{html.escape(item.status)}</span>'
+    views = ["all"]
+    if item.status != "Done":
+        views.append("open")
+    if item.status in STATUS_CLASS:
+        views.append({"Ready": "ready", "In Progress": "sprint", "Done": "done"}[item.status])
+    pill = (f'<span class="pill {STATUS_CLASS.get(item.status, "s-unknown")}">'
+            f'{_inline(item.status)}</span>') if item.status else ""
+    notes = item.status_note.replace("<br>", "\n")
+    sprint = _SPRINT_RE.search(notes)
+    sprint_chip = f'<span class="chip sprint">{_inline(sprint[1].strip())}</span>' if sprint else ""
+    waiting = ""
     if item.waiting_on:
-        note = f'<span class="pill s-waiting">Waiting</span><span class="note">on {_inline(item.waiting_on)}</span>'
-    else:
-        note = f'<span class="note">{_inline(item.status_note)}</span>' if item.status_note else ""
+        condition = item.waiting_on.split("<br>", 1)[0]
+        waiting = f'<p class="waiting"><span class="pill">Waiting</span> {_inline(condition)}</p>'
     return (
-        f'<article class="card{extra}" id="{html.escape(item.id)}">'
-        f'<div class="top"><span class="id">{html.escape(item.id)}</span><span class="rank">#{rank}</span></div>'
-        f'<div class="title">{_inline(item.title)}</div>'
-        f'<p class="job">{_inline(item.core_job)}</p>'
-        f'<p class="ctx">{_inline(item.context)}</p>'
-        f'<div class="meta">{pill}{note}'
-        f'<span class="note">Driver: {_inline(item.driver)}</span></div>'
-        f"</article>"
+        f'<div class="card-row" data-views="{" ".join(views)}" '
+        f'data-status="{html.escape(item.status)}" data-job="{html.escape(item.core_job)}">'
+        f'<span class="rank" aria-label="Priority {rank}">{rank}</span>'
+        f'<article class="card" id="{html.escape(item.id)}">'
+        f'<h2 class="item-title"><span class="item-id">{_inline(item.id)}.</span> {_inline(item.title)}</h2>'
+        f'<div class="meta">{pill}<span class="chip">{_inline(item.core_job)}</span>{sprint_chip}</div>'
+        f'{waiting}<p class="context">{_inline(item.context)}</p>'
+        '<!-- Reorder controls belong here when the write path is available. -->'
+        '</article></div>'
     )
 
 
-def render_board(backlog: Backlog, *, repo: str, subtitle: str = "", intro_html: str = "") -> str:
-    """One engine for every backlog view: tenant boards, the demo, and the
-    landing all call this. `intro_html` is trusted, pre-escaped chrome."""
+def _bug_card(bug: Bug) -> str:
+    return (
+        '<div class="card-row bug-row" data-views="bugs all" data-job="">'
+        f'<article class="card" id="{html.escape(bug.id)}">'
+        f'<h2 class="item-title item-id">{_inline(bug.id)}</h2>'
+        f'<p class="context">{_inline(bug.text)}</p></article></div>'
+    )
+
+
+def render_board(backlog: Backlog, *, repo: str, subtitle: str = "",
+                 intro_html: str = "", board_path: str = "") -> str:
+    """Render escaped source values. Only intro_html is trusted chrome.
+
+    board_path is the local board route, e.g. /teams/example; its markdown
+    lives at <board_path>/backlog.md. No JS is needed to read the All view.
+    """
     cards = "\n".join(_card(i + 1, item) for i, item in enumerate(backlog.items))
-    counts = {s: sum(1 for i in backlog.items if i.status == s) for s in STATUSES if s}
-    summary = " · ".join(f"{n} {s}" for s, n in counts.items() if n)
+    bugs = "\n".join(_bug_card(bug) for bug in backlog.bugs)
+    buttons = "\n".join(
+        f'<button type="button" data-view="{view.lower()}" '
+        f'aria-pressed="{str(view == "All").lower()}" disabled>{view}</button>'
+        for view in VIEWS
+    )
+    # Numeric values keep the all-jobs sentinel distinct from every source value,
+    # including an empty Core Job or a literal "all".
+    jobs = dict.fromkeys(item.core_job for item in backlog.items)
+    options = "".join(f'<option value="{i}">{html.escape(job)}</option>'
+                      for i, job in enumerate(jobs))
     problems = ""
     if backlog.problems:
-        items = "".join(f"<li>{html.escape(p)}</li>" for p in backlog.problems)
-        problems = f'<div class="problems"><strong>Format notes</strong><ul>{items}</ul></div>'
+        notes = "".join(f"<li>{_inline(p)}</li>" for p in backlog.problems)
+        problems = f'<aside class="problems"><strong>Format notes</strong><ul>{notes}</ul></aside>'
+    source = html.escape("/" + board_path.strip("/") + "/backlog.md" if board_path.strip("/") else "/backlog.md")
+    total = len(backlog.items) + len(backlog.bugs)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -95,15 +92,34 @@ def render_board(backlog: Backlog, *, repo: str, subtitle: str = "", intro_html:
 <style>{CSS}</style>
 </head>
 <body>
-<header><h1>{html.escape(backlog.title)}</h1>
-<small>{html.escape(repo)} · updated {html.escape(backlog.updated or "n/a")} · {html.escape(subtitle)}</small></header>
 <main>
 {intro_html}
+<section id="board" aria-label="Backlog board">
+<header class="masthead">
+<p class="eyebrow">{_inline(repo)}</p>
+<h1>{_inline(backlog.title)}</h1>
+<p class="description">{_inline(backlog.description)}</p>
+<div class="source-line"><span>Source updated {_inline(backlog.updated or "n/a")}</span>
+<a href="{source}">Open Markdown source</a></div>
+<p class="subtitle">{_inline(subtitle)}</p>
+</header>
 {problems}
-<p class="rank">{len(backlog.items)} items · {html.escape(summary)}</p>
-{cards}
+<div class="view-switch" role="group" aria-label="Show backlog view">{buttons}</div>
+<p id="view-count" class="count" role="status" aria-live="polite">All · {total} entries</p>
+<details class="filters">
+<summary>Filter</summary>
+<div class="filter-fields">
+<label>Core Job<select id="job-filter" disabled><option value="all">All core jobs</option>{options}</select></label>
+<label>Search<input id="search" type="search" placeholder="Search id or title" disabled></label>
+</div>
+</details>
+<noscript><p class="count">All entries are shown. Enable JavaScript to switch views and filter.</p></noscript>
+<div id="cards">{cards}{bugs}</div>
+<p id="empty-state" class="empty" hidden>No matching items.</p>
+</section>
 </main>
 <footer>Rendered by backlog.works from a markdown file. Document order is priority order.</footer>
+<script>{SCRIPT}</script>
 </body>
 </html>
 """

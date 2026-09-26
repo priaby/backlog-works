@@ -54,6 +54,12 @@ class Item:
 
 
 @dataclass(frozen=True)
+class Bug:
+    id: str
+    text: str
+
+
+@dataclass(frozen=True)
 class Backlog:
     title: str
     updated: str
@@ -61,6 +67,8 @@ class Backlog:
     table_start: int  # 0-based index of the first row line
     table_end: int  # 0-based index one past the last row line
     problems: tuple[str, ...] = field(default_factory=tuple)
+    description: str = ""
+    bugs: tuple[Bug, ...] = field(default_factory=tuple)
 
     @property
     def ids(self) -> tuple[str, ...]:
@@ -96,6 +104,67 @@ def _frontmatter(lines: list[str]) -> dict[str, str]:
             k, v = line.split(":", 1)
             out[k.strip()] = v.strip().strip('"')
     return out
+
+
+def _description(lines: list[str]) -> str:
+    """Join the first prose paragraph after the H1 into one display line."""
+    heading = next((i for i, line in enumerate(lines) if line.startswith("# ")), -1)
+    if heading < 0:
+        return ""
+    paragraph: list[str] = []
+    for line in lines[heading + 1:]:
+        text = line.strip()
+        if not text:
+            if paragraph:
+                break
+            continue
+        if re.match(r"^(?:[#>|]|[-*+]\s|\d+\.\s|```|~~~)", text):
+            break
+        paragraph.append(text)
+    return " ".join(paragraph)
+
+
+def parse_bugs(markdown: str) -> tuple[Bug, ...]:
+    """Read bug bullets and indented continuations only within ## Bugs."""
+    bugs: list[Bug] = []
+    active = False
+    current_id = ""
+    parts: list[str] = []
+    fence = ""
+
+    def finish() -> None:
+        if current_id:
+            bugs.append(Bug(current_id, " ".join(parts)))
+
+    for line in markdown.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("```", "~~~")):
+            if not fence:
+                fence = stripped[:3]
+            elif stripped.startswith(fence):
+                fence = ""
+            continue
+        if fence:
+            continue
+        if re.match(r"^#{1,2}\s", line):
+            if active:
+                break
+            active = stripped == "## Bugs"
+            continue
+        if not active:
+            continue
+        match = re.match(r"^- \*\*(BUG-[^*\s]+)\*\*\s*(.*)$", line)
+        if match:
+            finish()
+            current_id, first = match.groups()
+            parts = [first] if first else []
+        elif current_id and line.startswith(("  ", "\t")) and stripped:
+            parts.append(stripped)
+        elif stripped:
+            finish()
+            current_id, parts = "", []
+    finish()
+    return tuple(bugs)
 
 
 def parse_backlog(markdown: str) -> Backlog:
@@ -134,4 +203,5 @@ def parse_backlog(markdown: str) -> Backlog:
     if any(l.startswith(ROW_PREFIX) for l in lines[end:]):
         problems.append("a second `| PBI-` block exists after the active table")
     title = fm.get("title") or next((l[2:].strip() for l in lines if l.startswith("# ")), "Product Backlog")
-    return Backlog(title, fm.get("updated", ""), tuple(items), start, end, tuple(problems))
+    return Backlog(title, fm.get("updated", ""), tuple(items), start, end,
+                   tuple(problems), _description(lines), parse_bugs(markdown))

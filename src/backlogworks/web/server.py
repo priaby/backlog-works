@@ -19,6 +19,10 @@ Response = tuple[int, bytes, str] | tuple[int, bytes, str, dict[str, str]]
 Route = Callable[[], Response]
 
 _COMMON_HEADERS = {"X-Robots-Tag": "noindex", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
+_COMMON_HEADERS["Content-Security-Policy"] = (
+    "default-src 'none'; style-src 'unsafe-inline'; "
+    "script-src 'unsafe-inline'; img-src 'self'"
+)
 DEMO_SUBTITLE = "Fictitious translator product, read-only"
 
 
@@ -32,6 +36,7 @@ class App:
             "/": self.landing,
             "/healthz": self.healthz,
             "/demo": self.demo_board,
+            "/backlog.md": self.demo_markdown,
         }
 
     def healthz(self) -> Response:
@@ -45,6 +50,10 @@ class App:
 
     def demo_board(self) -> Response:
         return 301, b"", "text/plain; charset=utf-8", {"Location": "/"}
+
+    def demo_markdown(self) -> Response:
+        markdown, _ = load_demo(self.bus)
+        return 200, markdown.encode("utf-8"), "text/markdown; charset=utf-8"
 
     def dispatch(self, path: str) -> Response:
         route = self.routes.get(path.split("?", 1)[0])

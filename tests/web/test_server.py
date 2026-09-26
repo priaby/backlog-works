@@ -8,8 +8,42 @@ from unittest.mock import Mock, patch
 
 from backlogworks import __main__ as entry
 from backlogworks.config import Config
+from backlogworks.demo import load_demo
 from backlogworks.events import EventBus
+from backlogworks.landing import pitch_html
 from backlogworks.web.server import App, Handler, build_server
+
+
+class RouteTests(unittest.TestCase):
+    def test_source_route_returns_exact_demo_markdown(self):
+        markdown, _ = load_demo()
+        response = App(Config(), EventBus()).dispatch('/backlog.md?cache=ignored')
+        self.assertEqual(response, (200, markdown.encode('utf-8'), 'text/markdown; charset=utf-8'))
+
+    def test_root_contains_pitch_and_board(self):
+        status, body, content_type = App(Config(), EventBus()).dispatch('/')
+        self.assertEqual((status, content_type), (200, 'text/html; charset=utf-8'))
+        page = body.decode('utf-8')
+        self.assertIn(pitch_html(), page)
+        self.assertIn('id="board"', page)
+        self.assertLess(page.index(pitch_html()), page.index('id="board"'))
+        self.assertIn('href="/backlog.md"', page)
+
+    def test_response_headers_and_head_without_sockets(self):
+        handler = Handler.__new__(Handler)
+        handler.send_response = Mock()
+        handler.send_header = Mock()
+        handler.end_headers = Mock()
+        handler.wfile = io.BytesIO()
+        handler._send(200, b'body', 'text/html; charset=utf-8', write_body=False)
+        headers = dict(call.args for call in handler.send_header.call_args_list)
+        self.assertEqual(headers['Content-Security-Policy'],
+                         "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self'")
+        self.assertEqual(headers['X-Robots-Tag'], 'noindex')
+        self.assertEqual(headers['Cache-Control'], 'no-store')
+        self.assertEqual(headers['X-Content-Type-Options'], 'nosniff')
+        self.assertEqual(headers['Content-Length'], '4')
+        self.assertEqual(handler.wfile.getvalue(), b'')
 
 
 class LoggingTests(unittest.TestCase):
