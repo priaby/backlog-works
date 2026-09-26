@@ -23,13 +23,20 @@ DOC = (Path(__file__).resolve().parents[2] / "docs" / "design-system.md").read_t
 
 _TOKEN_NAME_RE = re.compile(r"--bw-[a-z0-9-]+")
 _CLASS_RE = re.compile(r"\bbw-[a-z0-9_-]+")
-_COLOR_LITERAL_RE = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(|oklch\(")
+_COLOR_LITERAL_RE = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgb\(|rgba\(|hsl\(|hsla\(|oklch\(")
+_CSS_COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
 
 
 def _tokens_block_span(css: str) -> tuple[int, int]:
     start = css.index("/* tokens:start */")
     end = css.index("/* tokens:end */") + len("/* tokens:end */")
     return start, end
+
+
+def _strip_comments(css: str) -> str:
+    """Drop /* ... */ spans so a name mentioned only in a comment (e.g. the
+    hex-fallback notes) does not read as a declaration."""
+    return _CSS_COMMENT_RE.sub("", css)
 
 
 class DesignTokenTests(unittest.TestCase):
@@ -39,7 +46,8 @@ class DesignTokenTests(unittest.TestCase):
         # wildcard shorthand, not a real token name, so it is excluded.
         names = {n for n in _TOKEN_NAME_RE.findall(DOC) if not n.endswith("-")}
         self.assertTrue(names, "expected to find --bw-* tokens in the doc")
-        missing = sorted(n for n in names if f"{n}:" not in CSS)
+        declared = _strip_comments(CSS)
+        missing = sorted(n for n in names if f"{n}:" not in declared)
         self.assertEqual(missing, [], f"tokens named in the doc but not defined in CSS: {missing}")
 
     def test_no_color_literals_outside_the_token_block(self):

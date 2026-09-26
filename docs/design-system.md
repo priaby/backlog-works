@@ -217,7 +217,8 @@ of `<button class="bw-segmented__option" aria-pressed>`.
 - Container: grid `repeat(N,minmax(0,1fr))` (N = option count, 4 today),
   bg sunken, radius pill, padding 4px, gap 2px. On phones it is sticky:
   `position: sticky; top: calc(var(--bw-inset-top) + var(--bw-space-2));
-  z-index: var(--bw-z-sticky)`, with `--bw-shadow-1`.
+  z-index: var(--bw-z-sticky)`, with `--bw-shadow-1`. Implemented as
+  `grid-auto-flow: column` so the option count never has to reach the CSS.
 - Option: min-height 44px, radius pill, `--bw-text-xs` strong, text
   ink-2 (8.1:1 on sunken). Hover (not pressed): text ink, bg
   `color-mix(in oklch, var(--bw-accent-2) 60%, var(--bw-sunken))`.
@@ -268,6 +269,8 @@ phone / 40px from 640px, gap 12px) holding `bw-rank` and
   then optional `bw-controls` last.
 - May contain: exactly those parts in that order. May not contain: a
   second heading, links other than inside context text, primary buttons.
+- The list container is `bw-card-list` (`#cards`): block, no padding; it
+  carries no visual style of its own.
 
 ### bw-rank
 Priority number. `<span class="bw-rank" aria-label="Priority N">`.

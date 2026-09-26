@@ -163,28 +163,34 @@ footer {
               transform var(--bw-duration-base) var(--bw-ease-out);
 }
 .bw-button--primary { background: var(--bw-accent-6); color: var(--bw-on-accent); }
-@media (any-hover: hover) { .bw-button--primary:hover:not([disabled]) { filter: brightness(.92); } }
-.bw-button--primary:active:not([disabled]) { transform: scale(.97); }
+@media (any-hover: hover) {
+  .bw-button--primary:hover:not([disabled]):not([aria-disabled="true"]) { filter: brightness(.92); }
+}
+.bw-button--primary:active:not([disabled]):not([aria-disabled="true"]) { transform: scale(.97); }
 .bw-button--quiet { background: transparent; color: var(--bw-accent-7); border: 1px solid var(--bw-line); }
 @media (any-hover: hover) {
-  .bw-button--quiet:hover:not([disabled]) { background: var(--bw-accent-1); border-color: var(--bw-accent-2); }
+  .bw-button--quiet:hover:not([disabled]):not([aria-disabled="true"]) { background: var(--bw-accent-1); border-color: var(--bw-accent-2); }
 }
-.bw-button--quiet:active:not([disabled]) { background: var(--bw-accent-2); }
+.bw-button--quiet:active:not([disabled]):not([aria-disabled="true"]) { background: var(--bw-accent-2); }
 .bw-button--icon {
   width: var(--bw-hit); height: var(--bw-hit); padding: 0; border-radius: var(--bw-radius-control);
   background: transparent; color: var(--bw-accent-7); border: 1px solid var(--bw-line);
 }
 @media (any-hover: hover) {
-  .bw-button--icon:hover:not([disabled]) { background: var(--bw-accent-1); color: var(--bw-accent-6); }
+  .bw-button--icon:hover:not([disabled]):not([aria-disabled="true"]) { background: var(--bw-accent-1); color: var(--bw-accent-6); }
 }
 .bw-button--sm { position: relative; min-height: 32px; height: 32px; padding: 0 var(--bw-space-3); font-size: var(--bw-text-xs); }
 .bw-button--sm::after { content: ""; position: absolute; inset: -6px; }
-.bw-button[disabled] { opacity: .4; cursor: not-allowed; }
+.bw-button[disabled], .bw-button[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
 
-/* bw-segmented */
+/* bw-segmented: grid-auto-flow keeps every option in one row regardless of
+   count, with no Python-supplied option count and no inline style (CSP);
+   past 5 options (< 72px/track) the container scrolls horizontally instead
+   of shrinking tracks further. */
 .bw-segmented {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 2px;
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(72px, 1fr); gap: 2px;
   background: var(--bw-sunken); border-radius: var(--bw-radius-pill); padding: 4px;
+  overflow-x: auto;
 }
 @media (max-width: 639px) {
   .bw-segmented {
@@ -193,15 +199,18 @@ footer {
   }
 }
 .bw-segmented__option {
-  min-height: var(--bw-hit); border-radius: var(--bw-radius-pill); font-size: var(--bw-text-xs);
-  font-weight: var(--bw-weight-strong); color: var(--bw-ink-2); background: transparent; opacity: .6;
+  min-height: var(--bw-hit); min-width: 0; border-radius: var(--bw-radius-pill); font-size: var(--bw-text-xs);
+  font-weight: var(--bw-weight-strong); color: var(--bw-ink-2); background: transparent;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: background-color var(--bw-duration-fast) var(--bw-ease-out), color var(--bw-duration-fast) var(--bw-ease-out);
 }
+.bw-segmented__option[disabled]:not([aria-pressed="true"]),
+.bw-segmented__option[aria-disabled="true"]:not([aria-pressed="true"]) { opacity: .6; }
 .bw-segmented__option[aria-pressed="true"] {
   background: var(--bw-surface); color: var(--bw-accent-7); box-shadow: var(--bw-shadow-1); opacity: 1;
 }
 @media (any-hover: hover) {
-  .bw-segmented__option:not([aria-pressed="true"]):hover {
+  .bw-segmented__option:not([aria-pressed="true"]):not([disabled]):not([aria-disabled="true"]):hover {
     color: var(--bw-ink); background: color-mix(in oklch, var(--bw-accent-2) 60%, var(--bw-sunken));
   }
 }
@@ -278,6 +287,10 @@ footer {
 .bw-notice .bw-button { margin-left: auto; }
 .bw-notice--warn { background: var(--bw-h2-2); border-color: var(--bw-h2-5); }
 .bw-notice--warn strong { color: var(--bw-h2-7); }
+.bw-notice--warn ul { margin: var(--bw-space-2) 0 0; padding-left: 20px; }
+@media (max-width: 639px) {
+  .bw-notice--warn { flex-direction: column; align-items: flex-start; }
+}
 
 /* bw-empty */
 .bw-empty {
@@ -296,7 +309,10 @@ footer {
 .bw-masthead__description { margin: 0 0 var(--bw-space-3); font-size: var(--bw-text-sm); color: var(--bw-ink-2); }
 .bw-masthead__description:empty { display: none; }
 .bw-masthead__source { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: var(--bw-text-xs); color: var(--bw-ink-3); }
-.bw-masthead__source a { color: var(--bw-accent-7); text-decoration: underline; text-underline-offset: 3px; }
+.bw-masthead__source a {
+  display: inline-flex; align-items: center; min-height: var(--bw-hit);
+  color: var(--bw-accent-7); text-decoration: underline; text-underline-offset: 3px;
+}
 @media (any-hover: hover) { .bw-masthead__source a:hover { color: var(--bw-accent-6); } }
 .bw-masthead__subtitle { margin: var(--bw-space-2) 0 0; font-size: var(--bw-text-xs); color: var(--bw-ink-3); }
 .bw-masthead__subtitle:empty { display: none; }
