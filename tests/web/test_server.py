@@ -31,7 +31,7 @@ class RouteTests(unittest.TestCase):
         self.assertLess(page.index(pitch_html()), page.index('id="board"'))
         self.assertIn('href="/backlog.md"', page)
         self.assertIn(f'id="{backlog.ids[0]}"', page)
-        self.assertIn('class="eyebrow">' + LOCAL_REPO, page)
+        self.assertIn('class="bw-masthead__eyebrow">' + LOCAL_REPO, page)
         self.assertIn(html.escape("This product's own backlog. Order changes are previews until sign-in ships."),
                      page)
         self.assertNotIn('PBI-', page)

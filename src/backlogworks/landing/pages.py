@@ -4,7 +4,7 @@ by the same board engine as every tenant board (web.board.render_board);
 this module only supplies the pitch shown above it. Pre-escaped, trusted
 HTML."""
 
-PITCH_HTML = """<section class="intro">
+PITCH_HTML = """<section class="bw-prose">
 <h2>backlog.works</h2>
 <p>A Scrum product backlog shared by a human Product Owner and agentic teams.</p>
 <ul>

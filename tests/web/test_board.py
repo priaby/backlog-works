@@ -100,10 +100,10 @@ class BoardTests(unittest.TestCase):
     def test_order_status_and_reset_and_empty_state_present(self):
         _, backlog = load_backlog(Config())
         page = render_board(backlog, repo="r")
-        self.assertIn('<div id="order-status" class="order-status" hidden>', page)
+        self.assertIn('<div id="order-status" class="bw-notice" hidden>', page)
         self.assertIn('Order changed in this browser only. Saving arrives with sign-in.', page)
-        self.assertIn('<button type="button" id="order-reset">Reset</button>', page)
-        self.assertIn('<p id="empty-state" class="empty" hidden>Nothing in this view.</p>', page)
+        self.assertIn('<button type="button" id="order-reset" class="bw-button bw-button--quiet bw-button--sm">Reset</button>', page)
+        self.assertIn('<p id="empty-state" class="bw-empty" hidden>Nothing in this view.</p>', page)
 
     def test_persist_order_hook_present_single_script_no_inline_handlers(self):
         _, backlog = load_backlog(Config())
@@ -122,15 +122,17 @@ class BoardTests(unittest.TestCase):
     def test_custom_status_pill_class_is_s_custom(self):
         md = "| K417. Item | job | context | Blocked | Team |"
         page = render_board(parse_backlog(md), repo="r")
-        self.assertIn('class="pill s-custom"', page)
+        self.assertIn('class="bw-pill bw-tone-h', page)
+        self.assertIn('bw-pill--custom', page)
 
     def test_masthead_chips_waiting_and_only_code_markup(self):
         md = '# Title\n\nDescription `code`.\n\n'
         md += '| K417. Title | Job | **literal** [link](url) `code` | Ready<br>Waiting on: review<br>Sprint: S4 | Team |\n'
         page = render_board(parse_backlog(md), repo="tenant")
-        for fragment in ('class="eyebrow">tenant', '<h1>Title</h1>',
+        for fragment in ('class="bw-masthead__eyebrow">tenant', '<h1>Title</h1>',
                          'Description <code>code</code>.', 'Source updated n/a',
-                         'class="chip sprint">S4', 'class="pill">Waiting</span> review',
+                         'class="bw-chip bw-chip--sprint">S4',
+                         'class="bw-pill bw-tone-waiting">Waiting</span> review',
                          '**literal** [link](url) <code>code</code>'):
             self.assertIn(fragment, page)
 
@@ -155,7 +157,7 @@ class BoardTests(unittest.TestCase):
     def test_ordinary_item_has_no_pill(self):
         md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| K417. x | j | c |  | T |\n"
         page = render_board(parse_backlog(md), repo="r")
-        self.assertNotIn('class="pill', page)
+        self.assertNotIn('class="bw-pill', page)
 
     def test_demo_route_is_gone(self):
         from backlogworks.web.server import App
