@@ -102,10 +102,19 @@ agent's first message in this repo, without being reminded:
 
 - **Hosting:** Railway. Production target is `backlog.works`.
 - **Secrets:** live in Railway project variables, not repo files.
-- **Bitwarden:** the only secret currently in Crest's Bitwarden Secrets
-  Manager relevant to this repo is the Railway deploy token, stored as
-  `RAILWAY_PAT` (UUID `4852b697-a726-4c8b-99f4-b4d000db3493`) — name/UUID
-  only, never the value, per Crest's Bitwarden secret-handling rule. It is
+- **Bitwarden:** two secrets in Crest's Bitwarden Secrets Manager are
+  relevant to this repo — name/UUID only, never the value, per Crest's
+  Bitwarden secret-handling rule. `RAILWAY_API` (UUID
+  `06e63f66-0e2e-4723-b2f7-b4d1006991bc`, added by the PO 2026-09-26) is a
+  Railway **workspace-scope** token: `me` returns `Not Authorized`, but
+  `workspace`, `projects`, `railwayDomainByName`, `railwayDomainDnsRecords`
+  and the `railwayDomainDnsRecord{Create,Update,Delete}` mutations work
+  (receipt: `docs/ops/handoff-2026-09-26.md`, session 5). Use it as a
+  `Authorization: Bearer` header on `https://backboard.railway.com/graphql/v2`
+  via curl (Python's default `urllib` user agent gets HTTP 403); the
+  workspace id below is a required argument. It is the path for DNS
+  changes on the Railway-managed `backlog.works` zone. The deploy token is
+  `RAILWAY_PAT` (UUID `4852b697-a726-4c8b-99f4-b4d000db3493`). It is
   a Railway **project token** (`RAILWAY_TOKEN` env var, not
   `RAILWAY_API_TOKEN`), scoped to the project below only. It is read-mostly
   in most of the CLI (`railway link`, `railway project rename` — no such

@@ -18,6 +18,18 @@ borrows Crest's Bitwarden Secrets Manager helper at
   **project token** for project `marvelous-wisdom`. Export it as
   `RAILWAY_TOKEN` (not `RAILWAY_API_TOKEN`). It can deploy and read
   project state; account-scope calls return `Unauthorized`.
+- `RAILWAY_API`, UUID `06e63f66-0e2e-4723-b2f7-b4d1006991bc`: a Railway
+  **workspace** token (workspace "My Projects"). Bearer header on the
+  GraphQL endpoint, via curl only (`urllib` is 403'd). Reads and writes
+  DNS records of the Railway-registered `backlog.works` zone
+  (`railwayDomainDnsRecords`, `railwayDomainDnsRecordCreate`, host `""`
+  for the apex, `recordId` is an Int). `me` is `Not Authorized`; the
+  deploy path stays `RAILWAY_PAT` + `scripts/deploy.sh`.
+- Mailjet sub-account key pair: Railway variables `MAILJET_API_KEY`,
+  `MAILJET_API_SECRET` (never in BWS). To call Mailjet from a session,
+  pipe `railway variables --json` into a script file (not a heredoc,
+  which steals stdin) that builds the Basic header in memory and prints
+  only Mailjet's response.
 - Nothing else. Product secrets (GitHub token for the Contents API, sign-in
   email provider, API-key signing secret) do not exist yet and each is a
   Product Owner vault write when its PBI comes up.
