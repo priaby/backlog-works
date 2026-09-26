@@ -17,6 +17,9 @@ _MOVES = (("up", "Move up", "M6 15l6-6 6 6"),
           ("down", "Move down", "M6 9l6 6 6-6"),
           ("top", "Move to top", "M6 5h12M6 18l6-6 6 6"))
 
+_VIEWS = (("open", "Open"), ("progress", "In progress"), ("done", "Done"), ("all", "All"))
+_DEFAULT_VIEW = "open"
+
 
 def _tone(status: str) -> str:
     """Map a status to a docs/design-system.md tone name. Stable across
@@ -72,7 +75,7 @@ def _card(rank: int, item: Item, *, is_first: bool, is_last: bool) -> str:
                    f'{_inline(condition)}</p>')
     return (
         f'<div class="bw-card-row" data-id="{html.escape(item.id)}" '
-        f'data-status="{html.escape(item.status)}" data-job="{html.escape(item.core_job)}" tabindex="-1">'
+        f'data-state="{item.state}" data-stage="{html.escape(item.stage)}" tabindex="-1">'
         f'<span class="bw-rank" aria-label="Priority {rank}">{rank}</span>'
         f'<article class="bw-card bw-tone-{tone}" id="{html.escape(item.id)}">'
         f'<h2 class="bw-card__title"><span class="bw-card__id">{_inline(item.id)}.</span> {_inline(item.title)}</h2>'
@@ -93,14 +96,11 @@ def render_board(backlog: Backlog, *, repo: str, subtitle: str = "",
     n = len(backlog.items)
     cards = "\n".join(_card(i + 1, item, is_first=(i == 0), is_last=(i == n - 1))
                       for i, item in enumerate(backlog.items))
-    all_button = ('<button type="button" class="bw-segmented__option" data-view="all" '
-                  'aria-pressed="true" disabled>All</button>')
-    status_buttons = "\n".join(
-        f'<button type="button" class="bw-segmented__option" data-view="status" data-filter="{html.escape(s)}" '
-        f'aria-pressed="false" disabled>{_inline(s)}</button>'
-        for s in backlog.statuses
+    buttons = "\n".join(
+        f'<button type="button" class="bw-segmented__option" data-view="{view}" '
+        f'aria-pressed="{"true" if view == _DEFAULT_VIEW else "false"}" disabled>{_inline(label)}</button>'
+        for view, label in _VIEWS
     )
-    buttons = "\n".join((all_button, status_buttons))
     problems = ""
     if backlog.problems:
         notes = "".join(f"<li>{_inline(p)}</li>" for p in backlog.problems)

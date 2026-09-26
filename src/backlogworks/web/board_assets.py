@@ -22,8 +22,14 @@ SCRIPT = """
   const rows = () => [...list.children];
   const original = rows();
   const currentIds = () => rows().map(r => r.dataset.id);
-  let view = viewButtons[0];
-  const matches = r => view.dataset.view === 'all' || r.dataset.status === view.dataset.filter;
+  let view = viewButtons.find(b => b.getAttribute('aria-pressed') === 'true') || viewButtons[0];
+  const matches = r => {
+    const v = view.dataset.view;
+    return v === 'all'
+      || (v === 'open' && r.dataset.state === 'open')
+      || (v === 'done' && r.dataset.state === 'done')
+      || (v === 'progress' && r.dataset.stage === 'In Progress');
+  };
 
   function step(r, dir) {
     let n = dir < 0 ? r.previousElementSibling : r.nextElementSibling;

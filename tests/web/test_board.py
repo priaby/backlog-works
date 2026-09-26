@@ -10,6 +10,7 @@ from backlogworks.config import Config
 from backlogworks.events import Event, EventBus
 from backlogworks.local import load_backlog
 from backlogworks.web.board import render_board
+from backlogworks.web.board_assets import SCRIPT
 
 
 class Elements(HTMLParser):
@@ -42,31 +43,39 @@ class BoardTests(unittest.TestCase):
         self.assertIn("&lt;b&gt;x&lt;/b&gt;", page)
         self.assertNotIn("<b>x</b>", page)
 
-    def test_rows_carry_id_and_status_no_data_views_and_ranks_follow_order(self):
+    def test_rows_carry_state_and_stage_and_ranks_follow_order(self):
         md = "\n".join(f"| K{100+i}. Item {i} | job | context | {status} | Team |"
                        for i, status in enumerate(("", "Done", "Ready", "In Progress", "Blocked"), 1))
         page = render_board(parse_backlog(md), repo="r")
         rows = [attrs for _, attrs in Elements(page).elements if 'data-id' in attrs]
-        self.assertEqual([r['data-status'] for r in rows], ["", "Done", "Ready", "In Progress", "Blocked"])
+        self.assertEqual([r['data-state'] for r in rows], ["open", "done", "open", "open", "open"])
+        self.assertEqual([r['data-stage'] for r in rows], ["", "", "Ready", "In Progress", "Blocked"])
+        self.assertTrue(all('data-status' not in attrs for _, attrs in Elements(page).elements))
+        self.assertTrue(all('data-job' not in attrs for _, attrs in Elements(page).elements))
         self.assertTrue(all('data-views' not in attrs for _, attrs in Elements(page).elements))
         self.assertTrue(all(r.get('tabindex') == '-1' for r in rows))
         for rank in range(1, 6):
             self.assertIn(f'aria-label="Priority {rank}">{rank}</span>', page)
 
-    def test_selector_is_all_then_backlog_statuses_only_all_pressed(self):
-        md = "\n".join(f"| K{100+i}. Item {i} | job | context | {status} | Team |"
-                       for i, status in enumerate(("Done", "Blocked", "Ready"), 1))
-        backlog = parse_backlog(md)
-        page = render_board(backlog, repo="r")
-        buttons = [a for t, a in Elements(page).elements if t == 'button' and 'data-view' in a]
-        self.assertEqual([b.get('data-filter') for b in buttons[1:]], list(backlog.statuses))
-        self.assertEqual(buttons[0]['data-view'], 'all')
-        self.assertTrue(all(b['data-view'] == 'status' for b in buttons[1:]))
-        self.assertEqual([b['aria-pressed'] for b in buttons], ['true'] + ['false'] * (len(buttons) - 1))
-        self.assertTrue(all('disabled' in b for b in buttons))
-        self.assertIn('Blocked', [b.get('data-filter') for b in buttons])
-        self.assertNotIn('>Open<', page)
-        self.assertNotIn('data-view="open"', page)
+    def test_segmented_has_four_fixed_options_open_pressed(self):
+        expected = [("open", "true", "Open"), ("progress", "false", "In progress"),
+                    ("done", "false", "Done"), ("all", "false", "All")]
+        pattern = (r'<button type="button" class="bw-segmented__option" data-view="([a-z]+)" '
+                   r'aria-pressed="(true|false)" disabled>([^<]+)</button>')
+        for statuses in (("Blocked", "Ready"), ("Done",)):
+            md = "\n".join(f"| K{100+i}. Item {i} | job | context | {status} | Team |"
+                           for i, status in enumerate(statuses, 1))
+            page = render_board(parse_backlog(md), repo="r")
+            self.assertEqual(re.findall(pattern, page), expected)
+            self.assertNotIn('data-filter', page)
+            self.assertNotIn('>Blocked</button>', page)
+
+    def test_script_filters_on_state_and_stage(self):
+        self.assertIn("r.dataset.state === 'open'", SCRIPT)
+        self.assertIn("r.dataset.state === 'done'", SCRIPT)
+        self.assertIn("r.dataset.stage === 'In Progress'", SCRIPT)
+        self.assertNotIn("dataset.status", SCRIPT)
+        self.assertNotIn("dataset.filter", SCRIPT)
 
     def test_card_controls_disabled_with_correct_edges(self):
         md = "\n".join(f"| K{100+i}. Item {i} | job | context | Ready | Team |" for i in range(1, 4))
@@ -150,9 +159,9 @@ class BoardTests(unittest.TestCase):
         elements = Elements(page).elements
         self.assertEqual(sum(tag == 'script' for tag, _ in elements), 1)
         self.assertFalse(any(tag == 'img' or 'onerror' in attrs for tag, attrs in elements))
-        row = next(attrs for _, attrs in elements if 'data-status' in attrs)
-        self.assertEqual(row['data-job'], payload)
-        self.assertEqual(row['data-status'], payload)
+        row = next(attrs for _, attrs in elements if 'data-stage' in attrs)
+        self.assertEqual(row['data-stage'], payload)
+        self.assertEqual(row['data-state'], 'open')
 
     def test_ordinary_item_has_no_pill(self):
         md = "| a | b | c | d | e |\n|---|---|---|---|---|\n| K417. x | j | c |  | T |\n"

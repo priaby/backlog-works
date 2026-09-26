@@ -227,21 +227,36 @@ Pill-shaped action. `<button type="button">` or `<a>`.
   pills, chips, links, more than one icon, block elements.
 
 ### bw-segmented
-The view switch. `<div class="bw-segmented" role="group" aria-label>`
-of `<button class="bw-segmented__option" aria-pressed>`.
-- Container: grid `repeat(N,minmax(0,1fr))` (N = option count, 4 today),
-  bg sunken, radius pill, padding 4px, gap 2px. On phones it is sticky:
-  `position: sticky; top: calc(var(--bw-inset-top) + var(--bw-space-2));
-  z-index: var(--bw-z-sticky)`, with `--bw-shadow-1`. Implemented as
-  `grid-auto-flow: column` so the option count never has to reach the CSS.
-- Option: min-height 44px, radius pill, `--bw-text-xs` strong, text
-  ink-2 (8.1:1 on sunken). Hover (not pressed): text ink, bg
-  `color-mix(in oklch, var(--bw-accent-2) 60%, var(--bw-sunken))`.
-  Pressed (`aria-pressed="true"`): bg surface, text accent-7,
-  `--bw-shadow-1`. Disabled (server render before JS): full opacity for the
-  pressed option, others .6.
-- May contain: 2-5 short text options. May not contain: icons alone,
-  counts, links, nested groups.
+The view control (component.gallery "segmented control" pattern).
+`<div class="bw-segmented" role="group" aria-label="Show backlog view">`
+of `<button type="button" class="bw-segmented__option" data-view aria-pressed>`.
+Fixed segments, in this order: `Open` (`open`, the default), `In progress`
+(`progress`), `Done` (`done`), `All` (`all`). Open = state open (custom
+stages included), In progress = stage `In Progress`, Done = state done,
+All = every item.
+- Container: one row of equal-width segments (`grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr)`), no gap, no padding, bg surface,
+  1px border line-strong, radius pill, `overflow: hidden` so the end
+  segments follow the pill. On phones it is sticky: `position: sticky;
+  top: calc(var(--bw-inset-top) + var(--bw-space-2)); z-index:
+  var(--bw-z-sticky)`, with `--bw-shadow-1`.
+- Segment: min-height 44px, no border, no radius, `--bw-text-xs` strong,
+  text ink-2, padding 0 `--bw-space-1`, one line. A 1px line divider
+  (`box-shadow: inset 1px 0 0 var(--bw-line)`) on every segment but the
+  first, removed on the pressed segment and the one after it, so dividers
+  sit only between unselected neighbours.
+- Hover (unpressed, enabled, `any-hover` only): bg accent-1, text ink.
+- Pressed (`aria-pressed="true"`): bg accent-6, text on-accent (5.62:1),
+  weight bold.
+- Focus-visible: the standard ring drawn inside the segment
+  (`outline-offset: calc(-1 * (var(--bw-focus-width) +
+  var(--bw-focus-offset)))`) because the container clips; on the pressed
+  segment the ring colour is on-accent.
+- Disabled (server render before JS): pressed at full opacity, others .6.
+  Without JS every card is shown and the noscript notice says so.
+- May contain: 2-5 short text segments with fixed meanings. May not
+  contain: icons alone, counts, links, nested groups, segments derived
+  from data.
 
 ### bw-pill
 Status label. `<span class="bw-pill bw-tone-*">`.
@@ -372,7 +387,9 @@ padding with safe-area insets), `a`, `button` font inherit, `code`
    - a `contrast.md` table computed from the shipped tokens: every text
      pair >= 4.5, focus ring and control borders >= 3 against the
      background they sit on;
-   - `scripts/check.sh` green, with JS disabled still showing the All view.
+   - `scripts/check.sh` green, with JS disabled still showing every card.
+8. Mutually exclusive view or filter choices always use `bw-segmented`;
+   never tabs, dropdowns or pill groups.
 
 ## 5. Deviation from the reference structure
 

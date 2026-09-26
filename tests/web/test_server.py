@@ -35,7 +35,7 @@ class RouteTests(unittest.TestCase):
         self.assertIn(html.escape("This product's own backlog. Order changes are previews until sign-in ships."),
                      page)
         self.assertNotIn('PBI-', page)
-        self.assertEqual(page.count(' data-view="'), 1 + len(backlog.statuses))
+        self.assertEqual(page.count(' data-view="'), 4)
         for removed in ('view-count', 'job-filter', 'bug-row', '<details'):
             self.assertNotIn(removed, page)
 

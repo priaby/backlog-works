@@ -53,6 +53,16 @@ class Item:
         return self.status in STATUSES
 
     @property
+    def state(self) -> str:
+        """Two-tier state: "done" on an exact "Done" status, else "open"."""
+        return "done" if self.status == "Done" else "open"
+
+    @property
+    def stage(self) -> str:
+        """The open item's optional status; empty once the item is done."""
+        return "" if self.state == "done" else self.status
+
+    @property
     def waiting_on(self) -> str:
         """The named external condition when the note starts with "Waiting on:"."""
         note = self.status_note
@@ -78,8 +88,16 @@ class Backlog:
         return tuple(i for i in self.items if i.status == "In Progress")
 
     @property
+    def open_items(self) -> tuple[Item, ...]:
+        return tuple(i for i in self.items if i.state == "open")
+
+    @property
     def statuses(self) -> tuple[str, ...]:
-        """KNOWN_STATUSES always present, then each non-empty custom status
+        """Kept for scripts/check_backlog.py's own status legend check and
+        for R685 (Configurable statuses per backlog); the board's fixed
+        Open/In progress/Done/All view control no longer reads this.
+
+        KNOWN_STATUSES always present, then each non-empty custom status
         (exact string match, so `done` counts as custom) in document order."""
         out = list(KNOWN_STATUSES)
         for item in self.items:

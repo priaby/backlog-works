@@ -78,6 +78,22 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(b.statuses, ("In Progress", "Ready", "Done", "Blocked", "Review"))
         self.assertIn("Ready", parse_backlog(MINIMAL).statuses)
 
+    def test_state_and_stage_two_tiers(self):
+        rows = ["", "Ready", "In Progress", "Done", "Blocked", "done"]
+        md = "\n".join(f"| K{100+i}. Item {i} | job | context | {status} | Team |"
+                       for i, status in enumerate(rows, 1))
+        b = parse_backlog(md)
+        self.assertEqual([i.state for i in b.items], ["open", "open", "open", "done", "open", "open"])
+        self.assertEqual([i.stage for i in b.items], ["", "Ready", "In Progress", "", "Blocked", "done"])
+
+    def test_open_items_and_in_progress(self):
+        rows = ["", "Ready", "In Progress", "Done", "Blocked", "done"]
+        md = "\n".join(f"| K{100+i}. Item {i} | job | context | {status} | Team |"
+                       for i, status in enumerate(rows, 1))
+        b = parse_backlog(md)
+        self.assertEqual([i.id for i in b.open_items], [i.id for i in b.items if i.status != "Done"])
+        self.assertEqual([i.status for i in b.in_progress], ["In Progress"])
+
     def test_repo_file_is_clean(self):
         b = parse_backlog(REPO_BACKLOG.read_text(encoding="utf-8"))
         self.assertEqual(b.problems, ())

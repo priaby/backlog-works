@@ -193,14 +193,11 @@ footer {
 .bw-button--sm::after { content: ""; position: absolute; inset: -6px; }
 .bw-button[disabled], .bw-button[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
 
-/* bw-segmented: grid-auto-flow keeps every option in one row regardless of
-   count, with no Python-supplied option count and no inline style (CSP);
-   past 5 options (< 72px/track) the container scrolls horizontally instead
-   of shrinking tracks further. */
+/* bw-segmented: one bordered pill, equal-width joined segments (fixed count). */
 .bw-segmented {
-  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(72px, 1fr); gap: 2px;
-  background: var(--bw-sunken); border-radius: var(--bw-radius-pill); padding: 4px;
-  overflow-x: auto;
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0; padding: 0;
+  background: var(--bw-surface); border: 1px solid var(--bw-line-strong);
+  border-radius: var(--bw-radius-pill); overflow: hidden;
 }
 @media (max-width: 639px) {
   .bw-segmented {
@@ -209,19 +206,25 @@ footer {
   }
 }
 .bw-segmented__option {
-  min-height: var(--bw-hit); min-width: 0; border-radius: var(--bw-radius-pill); font-size: var(--bw-text-xs);
-  font-weight: var(--bw-weight-strong); color: var(--bw-ink-2); background: transparent;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 var(--bw-space-1);
+  min-height: var(--bw-hit); min-width: 0; margin: 0; border: 0; border-radius: 0;
+  padding: 0 var(--bw-space-1); background: transparent; color: var(--bw-ink-2);
+  font-size: var(--bw-text-xs); font-weight: var(--bw-weight-strong);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: background-color var(--bw-duration-fast) var(--bw-ease-out), color var(--bw-duration-fast) var(--bw-ease-out);
+}
+.bw-segmented__option + .bw-segmented__option { box-shadow: inset 1px 0 0 var(--bw-line); }
+.bw-segmented__option[aria-pressed="true"],
+.bw-segmented__option[aria-pressed="true"] + .bw-segmented__option { box-shadow: none; }
+.bw-segmented__option[aria-pressed="true"] {
+  background: var(--bw-accent-6); color: var(--bw-on-accent); font-weight: var(--bw-weight-bold); opacity: 1;
 }
 .bw-segmented__option[disabled]:not([aria-pressed="true"]),
 .bw-segmented__option[aria-disabled="true"]:not([aria-pressed="true"]) { opacity: .6; }
-.bw-segmented__option[aria-pressed="true"] {
-  background: var(--bw-surface); color: var(--bw-accent-7); box-shadow: var(--bw-shadow-1); opacity: 1;
-}
+.bw-segmented__option:focus-visible { outline-offset: calc(-1 * (var(--bw-focus-width) + var(--bw-focus-offset))); }
+.bw-segmented__option[aria-pressed="true"]:focus-visible { outline-color: var(--bw-on-accent); }
 @media (any-hover: hover) {
   .bw-segmented__option:not([aria-pressed="true"]):not([disabled]):not([aria-disabled="true"]):hover {
-    color: var(--bw-ink); background: color-mix(in oklch, var(--bw-accent-2) 60%, var(--bw-sunken));
+    background: var(--bw-accent-1); color: var(--bw-ink);
   }
 }
 

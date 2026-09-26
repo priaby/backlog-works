@@ -294,9 +294,10 @@ No backlog content at rest. A restart loses only the in-memory read cache.
    `In Progress` = in the Sprint Backlog; `Done` = meets the Definition of
    Done. Notes after `<br>` (`Sprint: S4`, `Waiting on: <condition>`);
    cancelled rows are deleted. The parser accepts any other status text as
-   a custom status (tolerant reader); the board's view selector lists
-   `In Progress`, `Ready`, `Done`, then custom statuses in first-seen
-   order. `scripts/check_backlog.py` holds this repo's own
+   a custom status (tolerant reader). Two tiers: state open/done derived
+   from the cell; stage is the open item's optional status. The board's
+   view control is fixed: Open, In progress, Done, All; custom stages show
+   under Open. `scripts/check_backlog.py` holds this repo's own
    `docs/product/backlog.md` to the three-status legend (repo-process
    rule). Legend-declared vocabularies are R685 (Configurable statuses per
    backlog).
@@ -351,6 +352,7 @@ No backlog content at rest. A restart loses only the in-memory read cache.
 | 2026-09-26 | First tenant is this repository (dogfood) | PO default accepted | partner onboarding |
 | 2026-09-26 | Unknown GitHub outcome shown as "verifying", resolved on next request | PO default accepted | never |
 | 2026-09-26 | Commissioner is the product typeface, self-hosted at `/assets/fonts/` (two woff2 files, immutable cache), CSP `font-src 'self'` | PO decision; no third-party origin | the licence or the font files change |
+| 2026-09-26 | Two-tier status (state open/done from the Status cell, stage = the open item's optional status); fixed view control Open / In progress / Done / All, default Open, custom stages under Open; supersedes the 2026-09-26 statuses-only selector | PO decision | R685 lands |
 
 ## 7. Known debt
 
